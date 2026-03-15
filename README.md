@@ -5,7 +5,6 @@ Reference for data exfiltration methods from trusted tools (LOLBins, RMM tools, 
 
 hundreds of tools across 9 categories, each with:
 - endpoint and network detection patterns
-- ATT&CK mappings
 - simulation commands
 - DFIR artifacts
 - IOC artifacts (ports, pipes, service names, mutexes, User-Agents...)
