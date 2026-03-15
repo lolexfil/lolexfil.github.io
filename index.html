@@ -71,12 +71,22 @@ select{padding-left:10px;cursor:pointer}
 .card:hover{border-color:var(--border2);}
 .card-name-row{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:5px}
 .card-name{font-size:13px;font-weight:700;letter-spacing:.01em;flex:1;min-width:0;font-family:var(--mono);}
+.tool-anchor{font-family:var(--mono);font-size:9px;padding:2px 5px;
+  border:1px solid transparent;border-radius:2px;color:var(--dim);text-decoration:none;
+  cursor:pointer;background:transparent;transition:all .1s;white-space:nowrap;margin-top:1px;flex-shrink:0;}
+.tool-anchor:hover{color:var(--accent);border-color:var(--accent);}
+.tool-anchor.copied{color:var(--green);border-color:var(--green);}
+.cat-divider .cat-link{font-size:9px;font-family:var(--mono);color:var(--dim);
+  text-decoration:none;padding:1px 5px;border:1px solid transparent;border-radius:2px;
+  cursor:pointer;transition:all .1s;margin-left:4px;}
+.cat-divider .cat-link:hover{color:var(--accent);border-color:var(--accent);}
+.cat-divider .cat-link.copied{color:var(--green);}
 .card-toggle{flex-shrink:0;font-family:var(--mono);font-size:9px;padding:2px 6px;
   border:1px solid var(--dim);border-radius:2px;background:transparent;color:var(--dim);
   cursor:pointer;transition:all .1s;line-height:1.4;margin-top:1px;user-select:none;}
 .card-toggle:hover{color:var(--accent);border-color:var(--accent);}
-.card.collapsed .card-toggle::after{content:'[+]'}
-.card:not(.collapsed) .card-toggle::after{content:'[-]'}
+.card-toggle::after{content:'[+]'}
+.card.card-open .card-toggle::after{content:'[-]'}
 .contribute-btn{flex-shrink:0;font-family:var(--mono);font-size:9px;padding:2px 7px;
   border:1px solid var(--dim);border-radius:2px;background:transparent;color:var(--dim);
   text-decoration:none;transition:all .1s;white-space:nowrap;line-height:1.4;margin-top:1px;}
@@ -92,8 +102,7 @@ select{padding-left:10px;cursor:pointer}
 .badge.proto-link:hover{color:#6ee7b7;}
 .overview{font-size:12px;color:#8090b0;line-height:1.6;margin-bottom:0;font-family:var(--mono);white-space:pre-wrap;word-break:break-word;}
 /* collapsed state - hide everything after overview */
-.card-collapsible{display:block;margin-top:10px;}
-.card.collapsed .card-collapsible{display:none;}
+.card-collapsible{display:block;margin-top:8px;}
 /* SECTION LABELS */
 .sec-label{font-family:var(--mono);font-size:9.5px;font-weight:600;letter-spacing:.1em;
   text-transform:uppercase;color:var(--accent);margin:10px 0 7px;}
@@ -189,6 +198,34 @@ details.nets summary .sum-icon{color:var(--net)}
 .ioc-pipe{color:#f0abfc;background:rgba(240,171,252,.07);border-color:rgba(240,171,252,.2)}
 .ioc-ua{color:#94a3b8;background:rgba(148,163,184,.07);border-color:rgba(148,163,184,.2)}
 .ioc-mutex{color:#fb7185;background:rgba(251,113,133,.07);border-color:rgba(251,113,133,.2)}
+/* Telemetry section */
+details.telem{margin-top:9px}
+details.telem summary{cursor:pointer;font-family:var(--mono);font-size:11px;font-weight:600;
+  color:var(--muted);user-select:none;list-style:none;display:flex;align-items:center;gap:6px;
+  padding:7px 0;border-top:1px solid var(--border);transition:color .12s;}
+details.telem summary:hover{color:var(--text)}
+details.telem summary::-webkit-details-marker{display:none}
+details.telem summary::before{content:'▶';font-size:8px;color:var(--dim);transition:transform .15s;}
+details.telem[open] summary::before{transform:rotate(90deg)}
+.telem-body{padding:6px 0}
+.telem-section{margin-bottom:12px}
+.telem-label{font-family:var(--mono);font-size:9px;font-weight:600;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--accent);margin-bottom:5px;padding-bottom:3px;
+  border-bottom:1px solid var(--border2);}
+.telem-list{list-style:none;display:flex;flex-direction:column;gap:3px;}
+.telem-list li{font-family:var(--mono);font-size:11px;color:#8090b0;line-height:1.5;
+  padding:2px 0;padding-left:8px;border-left:1px solid var(--border2);}
+.telem-attack-id{font-family:var(--mono);font-size:10px;color:var(--muted);}
+.telem-attack-id a{color:var(--muted);text-decoration:none;}
+.telem-attack-id a:hover{color:var(--accent);}
+.telem-attack-name{font-family:var(--mono);font-size:11px;color:#8090b0;}
+.telem-attack-why{font-size:11px;color:var(--dim);margin-top:1px;}
+.telem-attack-row{padding:4px 0 4px 8px;border-left:1px solid var(--border2);margin-bottom:3px;}
+.telem-art-src{font-family:var(--mono);font-size:9px;color:var(--dim);text-transform:uppercase;letter-spacing:.07em;}
+.telem-art-path{font-family:var(--mono);font-size:11px;color:#8090b0;margin:2px 0;word-break:break-word;}
+.telem-art-notes{font-size:11px;color:var(--dim);line-height:1.45;}
+.telem-art-row{padding:4px 0 4px 8px;border-left:1px solid var(--border2);margin-bottom:4px;}
+.telem-signer{font-family:var(--mono);font-size:11px;color:#8090b0;padding:2px 0 2px 8px;border-left:1px solid var(--border2);}
 /* ATT&CK */
 .attack-row{display:flex;gap:8px;align-items:flex-start;margin-bottom:7px}
 .attack-row:last-child{margin-bottom:0}
@@ -201,6 +238,14 @@ details.nets summary .sum-icon{color:var(--net)}
 .attack-why{font-size:11px;color:var(--muted);margin-top:2px;line-height:1.5}
 /* REFS */
 .refs-section{margin-top:10px;padding-top:8px;border-top:1px solid var(--border)}
+details.refs-det{margin-top:9px}
+details.refs-det summary{cursor:pointer;font-family:var(--mono);font-size:11px;font-weight:600;
+  color:var(--muted);user-select:none;list-style:none;display:flex;align-items:center;gap:6px;
+  padding:7px 0;border-top:1px solid var(--border);transition:color .12s;}
+details.refs-det summary:hover{color:var(--text)}
+details.refs-det summary::-webkit-details-marker{display:none}
+details.refs-det summary::before{content:'▶';font-size:8px;color:var(--dim);transition:transform .15s;}
+details.refs-det[open] summary::before{transform:rotate(90deg)}
 .refs-list{display:flex;flex-direction:column;gap:3px;margin-top:6px}
 .ref-link{display:inline-flex;align-items:center;gap:7px;font-size:11.5px;color:var(--muted);
   text-decoration:none;padding:2px 0;line-height:1.45;transition:color .12s;}
@@ -262,7 +307,7 @@ mark{background:rgba(251,191,36,.22);color:var(--warn);border-radius:2px;padding
     <option value="unsigned">Sort: Unsigned tools first</option>
     <option value="attack_desc">Sort: Most ATT&amp;CK mappings</option>
   </select>
-  <button class="expand-all" id="expandBtn">Collapse all</button>
+  <button class="expand-all" id="expandBtn">Expand all</button>
 </div>
 
 <div class="count-bar" id="count"></div>
@@ -335,6 +380,8 @@ function mkEl(tag, cls, html){
   return el;
 }
 
+function toolSlug(name){ return encodeURIComponent(name); }
+function catSlug(cat){ return encodeURIComponent(cat); }
 function buildContributeUrl(toolName){
   const title = encodeURIComponent(`[Correction] ${toolName}`);
   const body = encodeURIComponent(
@@ -394,7 +441,7 @@ function renderPatternBlock(pats, isNetwork, q, expanded){
   return det;
 }
 
-let TOOLS=[], expandedAll=true;
+let TOOLS=[], expandAll=0; // 0=all folded visible,1=expanded(no telem),2=expanded+telem
 
 function render(tools, q){
   const grid=document.getElementById('grid');
@@ -424,7 +471,7 @@ function render(tools, q){
           'Sync & Transfer':'🔄','Backup':'💾','Remote Access':'🖥️'
         };
         const icon = catIcons[t.category] || '📁';
-        div.innerHTML = `<span class="cat-div-icon">${icon}</span>${esc(t.category)}`;
+        div.innerHTML = `<span class="cat-div-icon">${icon}</span>${esc(t.category)}<span class="cat-link" data-cat="${esc(t.category)}" title="Copy link to this category"># link</span>`;
         grid.appendChild(div);
         lastCat = t.category;
       }
@@ -435,6 +482,26 @@ function render(tools, q){
     // Name row + contribute button
     const nameRow=mkEl('div','card-name-row');
     nameRow.appendChild(mkEl('div','card-name',hl(t.name,q)));
+    // Tool permalink button
+    const anchor = mkEl('span','tool-anchor','# link');
+    anchor.title = 'Click: go to permalink. Right-click or long-press to copy URL.';
+    anchor.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      const slug = toolSlug(t.name);
+      const url = location.origin + location.pathname + '#tool=' + slug;
+      // Navigate to the hash (triggers applyHash via hashchange)
+      location.hash = 'tool=' + slug;
+      // Copy URL to clipboard with fallback
+      const doCopy = ()=>{
+        if(navigator.clipboard && navigator.clipboard.writeText){
+          navigator.clipboard.writeText(url).catch(()=>fallbackCopy(url));
+        } else { fallbackCopy(url); }
+        anchor.textContent='✓ copied'; anchor.classList.add('copied');
+        setTimeout(()=>{ anchor.textContent='# link'; anchor.classList.remove('copied'); }, 1400);
+      };
+      doCopy();
+    });
+    nameRow.appendChild(anchor);
     const contrib=mkEl('a','contribute-btn','✎ Contribute');
     contrib.href=buildContributeUrl(t.name);
     contrib.target='_blank'; contrib.rel='noopener noreferrer';
@@ -445,7 +512,9 @@ function render(tools, q){
     toggle.title = 'Expand / collapse this card';
     toggle.addEventListener('click', (e) => {
       e.stopPropagation();
-      card.classList.toggle('collapsed');
+      const isOpen = card.classList.toggle('card-open');
+      // open or close all details in this card (except telem which stays manual)
+      card.querySelectorAll('details.pats,details.nets,details.sims,details.refs-det').forEach(d=>{d.open=isOpen;});
     });
     nameRow.appendChild(toggle);
     card.appendChild(nameRow);
@@ -471,18 +540,18 @@ function render(tools, q){
     const collapsible = mkEl('div','card-collapsible');
 
     // Endpoint patterns
-    const epDet = renderPatternBlock(t.endpoint_detection_patterns, false, q, expandedAll);
+    const epDet = renderPatternBlock(t.endpoint_detection_patterns, false, q, false);
     if(epDet) collapsible.appendChild(epDet);
 
     // Network patterns
-    const npDet = renderPatternBlock(t.network_detection_patterns, true, q, expandedAll);
+    const npDet = renderPatternBlock(t.network_detection_patterns, true, q, false);
     if(npDet) collapsible.appendChild(npDet);
 
     // Simulations
     const sims=t.simulation_examples||[];
     if(sims.length){
       const simDet=mkEl('details','sims');
-      if(expandedAll) simDet.open=true;
+      // start closed
       const simSumm=mkEl('summary');
       simSumm.innerHTML=`<span class="sum-icon" style="color:var(--sim)">⚙</span> Simulation examples<span class="det-count">${sims.length}</span>`;
       simDet.appendChild(simSumm);
@@ -497,108 +566,144 @@ function render(tools, q){
       collapsible.appendChild(simDet);
     }
 
-    // Two-col
-    const two=mkEl('div','two-col');
-    const lc=mkEl('div');
-    if((t.telemetry_overview||[]).length){
-      lc.appendChild(mkEl('div','sec-label','Telemetry'));
-      const ul=mkEl('ul','pill-list');
-      (t.telemetry_overview||[]).forEach(x=>{ const li=mkEl('li'); li.innerHTML=hl(x,q); ul.appendChild(li); });
-      lc.appendChild(ul);
-    }
-    if((t.network_indicators||[]).length){
-      lc.appendChild(mkEl('div','sec-label','Network indicators'));
-      const ul=mkEl('ul','pill-list');
-      (t.network_indicators||[]).forEach(x=>{ const li=mkEl('li'); li.innerHTML=hl(x,q); ul.appendChild(li); });
-      lc.appendChild(ul);
-    }
-    two.appendChild(lc);
-    const rc=mkEl('div');
-    if((t.staging_behaviors||[]).length){
-      rc.appendChild(mkEl('div','sec-label purple','Staging behaviors'));
-      const ul=mkEl('ul','pill-list');
-      (t.staging_behaviors||[]).forEach(x=>{ const li=mkEl('li'); li.innerHTML=hl(x,q); ul.appendChild(li); });
-      rc.appendChild(ul);
-    }
-    if((t.expected_child_processes||[]).length){
-      rc.appendChild(mkEl('div','sec-label purple','Expected child processes'));
-      const ul=mkEl('ul','pill-list');
-      (t.expected_child_processes||[]).forEach(x=>{ const li=mkEl('li'); li.innerHTML=hl(x,q); ul.appendChild(li); });
-      rc.appendChild(ul);
-    }
-    two.appendChild(rc);
-    collapsible.appendChild(two);
+    // ── TELEMETRY section (always starts folded, even on expand all) ──
+    const telemDet = mkEl('details','telem');
+    // always starts closed
+    const telemSumm = mkEl('summary');
+    telemDet.appendChild(telemSumm);
+    const telemBody = mkEl('div','telem-body');
+    let telemCount = 0;
 
-    // ATT&CK
-    if((t.attack_mappings||[]).length){
-      collapsible.appendChild(mkEl('div','sec-label warn','ATT\u0026CK mappings'));
-      for(const m of t.attack_mappings){
-        collapsible.appendChild(mkEl('div','attack-row',
-          `<div class="attack-id"><a href="https://attack.mitre.org/techniques/${esc(m.id.replace('.','/'))}" target="_blank" rel="noopener">${esc(m.id)}</a></div>`+
-          `<div class="attack-detail"><div class="attack-name">${hl(m.name,q)}</div><div class="attack-why">${hl(m.why,q)}</div></div>`));
+    // Signer
+    const signers2 = t.signer||[];
+    if(signers2.length){
+      telemCount += signers2.length;
+      const sec=mkEl('div','telem-section');
+      sec.appendChild(mkEl('div','telem-label','Signer'));
+      for(const s of signers2){
+        const d=mkEl('div','telem-signer'); d.textContent=s;
+        sec.appendChild(d);
       }
+      telemBody.appendChild(sec);
+    }
+
+    // Telemetry overview
+    if((t.telemetry_overview||[]).length){
+      telemCount += t.telemetry_overview.length;
+      const sec=mkEl('div','telem-section');
+      sec.appendChild(mkEl('div','telem-label','Telemetry sources'));
+      const ul=mkEl('ul','telem-list');
+      t.telemetry_overview.forEach(x=>{const li=mkEl('li');li.innerHTML=hl(x,q);ul.appendChild(li);});
+      sec.appendChild(ul); telemBody.appendChild(sec);
+    }
+
+    // Network indicators
+    if((t.network_indicators||[]).length){
+      telemCount += t.network_indicators.length;
+      const sec=mkEl('div','telem-section');
+      sec.appendChild(mkEl('div','telem-label','Network indicators'));
+      const ul=mkEl('ul','telem-list');
+      t.network_indicators.forEach(x=>{const li=mkEl('li');li.innerHTML=hl(x,q);ul.appendChild(li);});
+      sec.appendChild(ul); telemBody.appendChild(sec);
+    }
+
+    // Staging behaviors
+    if((t.staging_behaviors||[]).length){
+      telemCount += t.staging_behaviors.length;
+      const sec=mkEl('div','telem-section');
+      sec.appendChild(mkEl('div','telem-label','Staging behaviors'));
+      const ul=mkEl('ul','telem-list');
+      t.staging_behaviors.forEach(x=>{const li=mkEl('li');li.innerHTML=hl(x,q);ul.appendChild(li);});
+      sec.appendChild(ul); telemBody.appendChild(sec);
+    }
+
+    // Expected child processes
+    if((t.expected_child_processes||[]).length){
+      telemCount += t.expected_child_processes.length;
+      const sec=mkEl('div','telem-section');
+      sec.appendChild(mkEl('div','telem-label','Expected child processes'));
+      const ul=mkEl('ul','telem-list');
+      t.expected_child_processes.forEach(x=>{const li=mkEl('li');li.innerHTML=hl(x,q);ul.appendChild(li);});
+      sec.appendChild(ul); telemBody.appendChild(sec);
+    }
+
+    // ATT&CK mappings
+    if((t.attack_mappings||[]).length){
+      telemCount += t.attack_mappings.length;
+      const sec=mkEl('div','telem-section');
+      sec.appendChild(mkEl('div','telem-label','ATT\u0026CK mappings'));
+      for(const m of t.attack_mappings){
+        const row=mkEl('div','telem-attack-row');
+        const idDiv=mkEl('div','telem-attack-id');
+        idDiv.innerHTML=`<a href="https://attack.mitre.org/techniques/${esc(m.id.replace('.','/'))}/" target="_blank" rel="noopener">${esc(m.id)}</a>`;
+        row.appendChild(idDiv);
+        row.appendChild(mkEl('div','telem-attack-name',hl(m.name,q)));
+        row.appendChild(mkEl('div','telem-attack-why',hl(m.why,q)));
+        sec.appendChild(row);
+      }
+      telemBody.appendChild(sec);
     }
 
     // DFIR artifacts
     if((t.detailed_artifacts||[]).length){
-      const artsDet=mkEl('details','arts');
-      if(expandedAll) artsDet.open=true;
-      const artsSumm=mkEl('summary');
-      artsSumm.innerHTML=`<span class="sum-icon" style="color:var(--muted)">🗂</span> DFIR artifacts<span class="det-count">${t.detailed_artifacts.length}</span>`;
-      artsDet.appendChild(artsSumm);
+      telemCount += t.detailed_artifacts.length;
+      const sec=mkEl('div','telem-section');
+      sec.appendChild(mkEl('div','telem-label','DFIR artifacts'));
       for(const a of t.detailed_artifacts){
-        artsDet.appendChild(mkEl('div','art-row',
-          `<div class="art-src">${esc(a.source)}</div>`+
-          `<div class="art-path">${hl(a.path,q)}</div>`+
-          `<div class="art-notes">${hl(a.notes,q)}</div>`));
+        const row=mkEl('div','telem-art-row');
+        row.appendChild(mkEl('div','telem-art-src',esc(a.source)));
+        const path=mkEl('div','telem-art-path'); path.innerHTML=hl(a.path,q); row.appendChild(path);
+        const notes=mkEl('div','telem-art-notes'); notes.innerHTML=hl(a.notes,q); row.appendChild(notes);
+        sec.appendChild(row);
       }
-      collapsible.appendChild(artsDet);
+      telemBody.appendChild(sec);
     }
 
-    // IOC Artifacts (UA, pipes, services, tasks, ports, mutexes)
+    // IOC artifacts
     const ioc=t.ioc_artifacts||{};
     const iocRows=[
-      {icon:'🌐',label:'Dest. Port',   vals:(ioc.destination_ports||[]).map(String),  cls:'ioc-port'},
-      {icon:'🔧',label:'Service Name', vals:ioc.service_names||[],                    cls:'ioc-svc'},
-      {icon:'📅',label:'Sched. Task',  vals:ioc.scheduled_tasks||[],                  cls:'ioc-task'},
-      {icon:'🔗',label:'Named Pipe',   vals:ioc.named_pipes||[],                      cls:'ioc-pipe'},
-      {icon:'🤖',label:'User-Agent',   vals:ioc.user_agents||[],                      cls:'ioc-ua'},
-      {icon:'🔒',label:'Mutex',        vals:ioc.mutexes||[],                          cls:'ioc-mutex'},
+      {label:'Dest. Port',   vals:(ioc.destination_ports||[]).map(String), cls:'ioc-port'},
+      {label:'Service Name', vals:ioc.service_names||[],                   cls:'ioc-svc'},
+      {label:'Sched. Task',  vals:ioc.scheduled_tasks||[],                 cls:'ioc-task'},
+      {label:'Named Pipe',   vals:ioc.named_pipes||[],                     cls:'ioc-pipe'},
+      {label:'User-Agent',   vals:ioc.user_agents||[],                     cls:'ioc-ua'},
+      {label:'Mutex',        vals:ioc.mutexes||[],                         cls:'ioc-mutex'},
     ].filter(r=>r.vals.length>0);
     if(iocRows.length){
-      const iocDet=mkEl('details','ioc-block');
-      if(expandedAll) iocDet.open=true;
-      const iocSumm=mkEl('summary');
       const totalIoc=iocRows.reduce((s,r)=>s+r.vals.length,0);
-      iocSumm.innerHTML=`<span class="sum-icon" style="color:#a78bfa">🎯</span> IOC artifacts<span class="det-count">${totalIoc}</span>`;
-      iocDet.appendChild(iocSumm);
+      telemCount += totalIoc;
+      const sec=mkEl('div','telem-section');
+      sec.appendChild(mkEl('div','telem-label','IOC artifacts'));
       const iocGrid=mkEl('div','ioc-grid');
       for(const row of iocRows){
         const grp=mkEl('div','ioc-group');
-        grp.innerHTML=`<div class="ioc-label">${row.icon} ${row.label}</div>`;
+        grp.innerHTML=`<div class="ioc-label">${row.label}</div>`;
         const pills=mkEl('div','ioc-pills');
         for(const v of row.vals){
           const pill=mkEl('span',`ioc-pill ${row.cls}`,hl(v,q));
-          // copy on click
           pill.title='Click to copy';
           pill.addEventListener('click',()=>{navigator.clipboard.writeText(v);
-            const orig=pill.textContent; pill.textContent='✓'; setTimeout(()=>{pill.innerHTML=hl(v,q);},800);});
+            pill.textContent='✓'; setTimeout(()=>{pill.innerHTML=hl(v,q);},800);});
           pills.appendChild(pill);
         }
-        grp.appendChild(pills);
-        iocGrid.appendChild(grp);
+        grp.appendChild(pills); iocGrid.appendChild(grp);
       }
-      iocDet.appendChild(iocGrid);
-      collapsible.appendChild(iocDet);
+      sec.appendChild(iocGrid); telemBody.appendChild(sec);
     }
 
-    // References
+    telemSumm.innerHTML=`<span class="sum-icon" style="color:var(--muted)">📋</span> Telemetry<span class="det-count">${telemCount}</span>`;
+    if(telemCount>0){ telemDet.appendChild(telemBody); collapsible.appendChild(telemDet); }
+
+    // ── 5th section: References ──────────────────────────────────────────
     const refs=t.refs||[];
     if(refs.length){
-      const rs=mkEl('div','refs-section');
+      const refsDet=mkEl('details','refs-det');
+      // always starts closed
+      const refsSumm=mkEl('summary');
       const rc2=refs.filter(r=>r.type==='report').length, gc=refs.filter(r=>r.type==='github').length;
       const parts=[]; if(rc2) parts.push(`${rc2} report${rc2>1?'s':''}`); if(gc) parts.push(`${gc} repo${gc>1?'s':''}`);
-      rs.appendChild(mkEl('div','sec-label orange',`References — ${parts.join(' · ')}`));
+      refsSumm.innerHTML=`<span class="sum-icon" style="color:var(--report)">↗</span> References<span class="det-count">${parts.join(' · ')}</span>`;
+      refsDet.appendChild(refsSumm);
       const rl=mkEl('div','refs-list');
       for(const r of refs){
         const a=mkEl('a','ref-link'); a.href=r.url; a.target='_blank'; a.rel='noopener noreferrer';
@@ -607,7 +712,8 @@ function render(tools, q){
         const ls=mkEl('span'); ls.innerHTML=hl(r.label,q); a.appendChild(ls);
         rl.appendChild(a);
       }
-      rs.appendChild(rl); collapsible.appendChild(rs);
+      refsDet.appendChild(rl);
+      collapsible.appendChild(refsDet);
     }
 
     card.appendChild(collapsible);
@@ -694,15 +800,24 @@ function apply(){
   render(sortTools(filtered, mode), q);
 }
 document.getElementById('expandBtn').addEventListener('click',()=>{
-  expandedAll=!expandedAll;
-  document.getElementById('expandBtn').textContent=expandedAll?'Collapse all':'Expand all';
-  // Toggle card-level collapse
-  document.querySelectorAll('.card').forEach(c=>{
-    c.classList.toggle('collapsed', !expandedAll);
-  });
-  // Toggle inner details when expanding
-  if(expandedAll){
-    document.querySelectorAll('details.pats,details.nets,details.arts,details.sims,details.ioc-block').forEach(d=>{ d.open=true; });
+  expandAll = (expandAll + 1) % 3; // 0→1→2→0
+  const btn = document.getElementById('expandBtn');
+  if(expandAll === 0){
+    // Collapse all: fold everything, sections still visible
+    btn.textContent='Expand all';
+    document.querySelectorAll('.card').forEach(c=>c.classList.remove('card-open'));
+    document.querySelectorAll('details.pats,details.nets,details.sims,details.telem,details.refs-det').forEach(d=>{d.open=false;});
+  } else if(expandAll === 1){
+    // Expand: open pats/nets/sims/refs, keep telem folded
+    btn.textContent='Expand all (+telemetry)';
+    document.querySelectorAll('.card').forEach(c=>c.classList.add('card-open'));
+    document.querySelectorAll('details.pats,details.nets,details.sims,details.refs-det').forEach(d=>{d.open=true;});
+    document.querySelectorAll('details.telem').forEach(d=>{d.open=false;});
+  } else {
+    // Expand everything including telemetry
+    btn.textContent='Collapse all';
+    document.querySelectorAll('.card').forEach(c=>c.classList.add('card-open'));
+    document.querySelectorAll('details.pats,details.nets,details.sims,details.telem,details.refs-det').forEach(d=>{d.open=true;});
   }
 });
 document.getElementById('search').addEventListener('input',apply);
@@ -710,24 +825,87 @@ document.getElementById('category').addEventListener('change',apply);
 document.getElementById('platform').addEventListener('change',apply);
 document.getElementById('sortBy').addEventListener('change',apply);
 document.addEventListener('click', e=>{
+  // Proto-link badge
   const badge = e.target.closest('.proto-link');
-  if(!badge) return;
-  const protoName = badge.dataset.proto;
-  if(!protoName) return;
-  // Search for that protocol tool by name
-  const q = document.getElementById('search');
-  q.value = protoName;
-  apply();
-  // Scroll to first matching card
-  setTimeout(()=>{
-    const first = document.querySelector('.card');
-    if(first) first.scrollIntoView({behavior:'smooth', block:'start'});
-  }, 100);
+  if(badge){
+    const protoName = badge.dataset.proto;
+    if(protoName){
+      document.getElementById('search').value = protoName;
+      apply();
+      setTimeout(()=>{ const f=document.querySelector('.card'); if(f) f.scrollIntoView({behavior:'smooth',block:'start'}); },100);
+    }
+    return;
+  }
+  // Category permalink
+  const catLink = e.target.closest('.cat-link');
+  if(catLink){
+    const cat = catLink.dataset.cat;
+    const slug = catSlug(cat);
+    const url = location.origin + location.pathname + '#cat=' + slug;
+    location.hash = 'cat=' + slug;
+    const doCopy = ()=>{
+      if(navigator.clipboard && navigator.clipboard.writeText){
+        navigator.clipboard.writeText(url).catch(()=>fallbackCopy(url));
+      } else { fallbackCopy(url); }
+      catLink.textContent='✓ copied'; catLink.classList.add('copied');
+      setTimeout(()=>{ catLink.textContent='# link'; catLink.classList.remove('copied'); }, 1400);
+    };
+    doCopy();
+  }
 });
+
+function fallbackCopy(text){
+  const ta = document.createElement('textarea');
+  ta.value = text; ta.style.cssText='position:fixed;top:-9999px;left:-9999px;opacity:0;';
+  document.body.appendChild(ta); ta.focus(); ta.select();
+  try{ document.execCommand('copy'); } catch(e){}
+  document.body.removeChild(ta);
+}
+function applyHash(){
+  const hash = decodeURIComponent(location.hash.slice(1));
+  if(!hash) return false;
+  if(hash.startsWith('tool=')){
+    const name = hash.slice(5);
+    // Filter to just this tool using exact name match
+    const q = document.getElementById('search');
+    q.value = name;
+    document.getElementById('category').value = '';
+    // Force render with only the matching tool, bypassing partial search
+    const exact = TOOLS.filter(t => t.name === name);
+    if(exact.length === 0){
+      // Fallback to search
+      apply();
+    } else {
+      render(exact, '');
+    }
+    // Expand all sections of the card including telemetry
+    setTimeout(()=>{
+      const card = document.querySelector('.card');
+      if(card){
+        card.classList.add('card-open');
+        card.querySelectorAll('details').forEach(d=>{ d.open=true; });
+        card.scrollIntoView({behavior:'smooth', block:'start'});
+      }
+    }, 100);
+    return true;
+  }
+  if(hash.startsWith('cat=')){
+    const cat = hash.slice(4);
+    const sel = document.getElementById('category');
+    // Find matching option
+    for(const opt of sel.options){
+      if(opt.value === cat){ sel.value = cat; break; }
+    }
+    apply();
+    setTimeout(()=>{ window.scrollTo({top:0,behavior:'smooth'}); }, 80);
+    return true;
+  }
+  return false;
+}
 
 fetch('tools.json')
   .then(r=>{ if(!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
-  .then(data=>{ TOOLS=data; initSelects(); apply(); })
+  .then(data=>{ TOOLS=data; initSelects(); if(!applyHash()) apply(); })
   .catch(err=>{
     document.getElementById('grid').innerHTML=
       `<div class="empty" style="color:var(--danger)">Failed to load tools.json: ${esc(err.message)}<br>
@@ -735,6 +913,7 @@ fetch('tools.json')
         Serve over HTTP — <code>python3 -m http.server</code>
       </span></div>`;
   });
+window.addEventListener('hashchange', ()=>{ applyHash(); });
 </script>
 </body>
 </html>
