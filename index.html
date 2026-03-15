@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LOLEXFIL — LOL Exfiltration Reference</title>
+<link rel="icon" type="image/png" href="logo.png">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#06080f;--surface:#0b0e18;--surface2:#0f1422;--surface3:#141929;
+  --border:#1a2236;--border2:#1e2840;
+  --text:#d8e2ff;--muted:#5a7098;--dim:#2e4060;
+  --accent:#38bdf8;--accent2:#818cf8;--warn:#fbbf24;
+  --green:#34d399;--report:#fb923c;--sim:#a78bfa;--danger:#f87171;
+  --net:#22d3ee;--endpt:#a3e635;
+  --mono:'JetBrains Mono',monospace;--sans:'JetBrains Mono',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:var(--mono);background:var(--bg);color:var(--text);min-height:100vh;}
+/* HEADER */
+.site-header{border-bottom:1px solid var(--border);padding:12px 24px;
+  display:flex;align-items:center;gap:14px;
+  position:sticky;top:0;z-index:100;
+  background:var(--bg);}
+.wordmark{font-size:1.1rem;font-weight:700;letter-spacing:.08em;line-height:1;
+  font-family:var(--mono);white-space:nowrap;}
+.wm-lol{color:#38bdf8;}
+.wm-exfil{color:#1d7fa8;}
+.header-count{font-family:var(--mono);font-size:10px;color:var(--muted);
+  padding:2px 7px;border:1px solid var(--border2);}
+.header-spacer{flex:1}
+.gh-link{display:flex;align-items:center;gap:7px;color:var(--muted);text-decoration:none;
+  font-size:11px;font-weight:600;padding:5px 10px;border:1px solid var(--border2);
+  background:transparent;transition:all .1s;white-space:nowrap;font-family:var(--mono);}
+.gh-link:hover{color:var(--accent);border-color:var(--accent);}
+.gh-link svg{flex-shrink:0}
+/* TOOLBAR */
+.toolbar{max-width:1440px;margin:0 auto;padding:12px 24px 0;
+  display:grid;grid-template-columns:1fr 190px 190px 230px auto;gap:8px;align-items:center;}
+.toolbar-input{position:relative;display:flex;align-items:center}
+.toolbar-input svg{position:absolute;left:10px;color:var(--dim);pointer-events:none;flex-shrink:0}
+input[type=text],select{width:100%;padding:7px 10px 7px 30px;border-radius:2px;
+  border:1px solid var(--border2);background:var(--surface2);color:var(--text);
+  font-family:var(--mono);font-size:12px;font-weight:400;outline:none;transition:border-color .1s;}
+input[type=text]::placeholder{color:var(--dim)}
+input[type=text]:focus,select:focus{border-color:var(--accent)}
+select{padding-left:10px;cursor:pointer}
+.expand-all{font-family:var(--mono);font-size:11px;padding:7px 12px;
+  border:1px solid var(--border2);border-radius:2px;
+  background:transparent;color:var(--muted);cursor:pointer;transition:all .1s;white-space:nowrap;}
+.expand-all:hover{color:var(--accent);border-color:var(--accent)}
+/* COUNT BAR */
+.count-bar{max-width:1440px;margin:0 auto;padding:9px 24px 3px;
+  font-family:var(--mono);font-size:11.5px;color:var(--dim);}
+/* CATEGORY DIVIDERS */
+.cat-divider{grid-column:1/-1;display:flex;align-items:center;gap:10px;
+  font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--muted);padding:18px 4px 8px;
+  border-top:1px solid var(--border);margin-top:8px;}
+.cat-divider:first-child{border-top:none;margin-top:0;padding-top:8px;}
+.cat-div-icon{font-size:14px;opacity:.8;}
+/* GRID */
+.grid{max-width:1440px;margin:0 auto;padding:12px 24px 56px;
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(420px,1fr));gap:10px;}
+/* CARD */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:2px;
+  padding:14px 16px;display:flex;flex-direction:column;
+  transition:border-color .1s;}
+.card:hover{border-color:var(--border2);}
+.card-name-row{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:5px}
+.card-name{font-size:13px;font-weight:700;letter-spacing:.01em;flex:1;min-width:0;font-family:var(--mono);}
+.card-toggle{flex-shrink:0;font-family:var(--mono);font-size:9px;padding:2px 6px;
+  border:1px solid var(--dim);border-radius:2px;background:transparent;color:var(--dim);
+  cursor:pointer;transition:all .1s;line-height:1.4;margin-top:1px;user-select:none;}
+.card-toggle:hover{color:var(--accent);border-color:var(--accent);}
+.card.collapsed .card-toggle::after{content:'[+]'}
+.card:not(.collapsed) .card-toggle::after{content:'[-]'}
+.contribute-btn{flex-shrink:0;font-family:var(--mono);font-size:9px;padding:2px 7px;
+  border:1px solid var(--dim);border-radius:2px;background:transparent;color:var(--dim);
+  text-decoration:none;transition:all .1s;white-space:nowrap;line-height:1.4;margin-top:1px;}
+.contribute-btn:hover{color:var(--warn);border-color:var(--warn);}
+.card-badges{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:10px}
+.badge{font-family:var(--mono);font-size:9.5px;padding:1px 6px;border-radius:2px;
+  border:1px solid var(--border2);color:var(--muted);background:transparent;font-weight:400;}
+.badge.plat{color:var(--accent2);border-color:rgba(129,140,248,.2);}
+.badge.signer{color:#86efac;border-color:rgba(134,239,172,.2);font-size:9.5px}
+.badge.signer-unknown{color:#4b5563;border-color:rgba(75,85,99,.2);font-size:9.5px;font-style:italic}
+.badge.signer-unsigned{color:#f87171;border-color:rgba(248,113,113,.2);font-size:9.5px}
+.badge.proto-link{color:#34d399;border-color:rgba(52,211,153,.2);font-size:9.5px;cursor:pointer;transition:color .1s}
+.badge.proto-link:hover{color:#6ee7b7;}
+.overview{font-size:12px;color:#8090b0;line-height:1.6;margin-bottom:0;font-family:var(--mono);white-space:pre-wrap;word-break:break-word;}
+/* collapsed state - hide everything after overview */
+.card-collapsible{display:block;margin-top:10px;}
+.card.collapsed .card-collapsible{display:none;}
+/* SECTION LABELS */
+.sec-label{font-family:var(--mono);font-size:9.5px;font-weight:600;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--accent);margin:10px 0 7px;}
+.sec-label.purple{color:var(--accent2)}
+.sec-label.warn{color:var(--warn)}
+.sec-label.orange{color:var(--report)}
+/* PILLS */
+ul.pill-list{list-style:none;display:flex;flex-wrap:wrap;gap:4px;margin-bottom:2px}
+ul.pill-list li{font-family:var(--mono);font-size:10.5px;padding:3px 7px;
+  border-radius:4px;background:var(--surface3);border:1px solid var(--border);
+  color:#c0d0ed;line-height:1.4;}
+/* SHARED DETAILS */
+details.pats,details.nets,details.arts,details.sims{margin-top:9px}
+details.pats summary,details.nets summary,details.arts summary,details.sims summary{
+  cursor:pointer;font-family:var(--mono);font-size:11px;font-weight:600;color:var(--muted);
+  user-select:none;list-style:none;display:flex;align-items:center;gap:6px;
+  padding:7px 0;border-top:1px solid var(--border);transition:color .12s;}
+details.pats summary:hover,details.nets summary:hover,details.arts summary:hover,details.sims summary:hover{color:var(--text)}
+details.pats summary::-webkit-details-marker,details.nets summary::-webkit-details-marker,
+details.arts summary::-webkit-details-marker,details.sims summary::-webkit-details-marker{display:none}
+details.pats summary::before,details.nets summary::before,
+details.arts summary::before,details.sims summary::before{
+  content:'▶';font-size:8px;color:var(--dim);transition:transform .15s;}
+details.pats[open] summary::before,details.nets[open] summary::before,
+details.arts[open] summary::before,details.sims[open] summary::before{transform:rotate(90deg)}
+.det-count{margin-left:auto;color:var(--dim);font-weight:400}
+/* endpoint label */
+details.pats summary .sum-icon{color:var(--endpt)}
+details.nets summary .sum-icon{color:var(--net)}
+/* PATTERN GROUPS */
+.pat-group-label{font-family:var(--mono);font-size:9px;font-weight:600;letter-spacing:.09em;
+  text-transform:uppercase;padding:7px 0 4px;margin-top:4px;
+  border-bottom:1px solid var(--border);}
+.pat-group-label.exfil{color:var(--danger)}
+.pat-group-label.presence{color:var(--dim)}
+/* PATTERN ROW */
+.pattern-row{padding:8px 0 7px;border-bottom:1px dashed var(--border)}
+.pattern-row:last-child{border-bottom:none}
+.pat-code{font-family:var(--mono);font-size:12px;color:#dde8ff;
+  background:var(--surface3);padding:6px 10px;border-radius:5px;border:1px solid var(--border2);
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+  word-break:break-all;line-height:1.5;}
+.pat-text{flex:1}
+.copy-btn{flex-shrink:0;font-family:var(--mono);font-size:9px;padding:2px 6px;
+  border:1px solid var(--dim);border-radius:3px;background:transparent;color:var(--dim);
+  cursor:pointer;transition:all .12s;line-height:1.4;}
+.copy-btn:hover{color:var(--accent);border-color:var(--accent)}
+.copy-btn.copied{color:var(--green);border-color:var(--green)}
+/* network pattern row has a tinted background */
+.net-pattern-row .pat-code{border-color:rgba(34,211,238,.15);background:rgba(34,211,238,.04)}
+.pat-flags{display:flex;gap:5px;margin-top:5px;flex-wrap:wrap}
+.pflag{font-family:var(--mono);font-size:9.5px;padding:2px 6px;border-radius:3px;border:1px solid}
+.pflag.type{color:var(--warn);border-color:rgba(251,191,36,.28);background:rgba(251,191,36,.04)}
+.pflag.yes{color:var(--green);border-color:rgba(52,211,153,.28);background:rgba(52,211,153,.04)}
+.pflag.no{color:var(--dim);border-color:rgba(56,79,114,.5)}
+.pat-purpose{font-size:11.5px;color:var(--muted);margin-top:4px;line-height:1.5}
+.pat-args{margin-top:5px;padding-left:10px;border-left:2px solid var(--border2)}
+.pat-arg-name{font-family:var(--mono);font-size:10.5px;color:#c0d0ed;font-weight:600}
+.pat-arg-why{font-size:11px;color:var(--muted);margin-top:1px;line-height:1.45}
+/* SIMULATIONS */
+.sim-row{padding:9px 0 7px;border-bottom:1px dashed var(--border)}
+.sim-row:last-child{border-bottom:none}
+.sim-desc{font-size:12px;color:var(--muted);margin-bottom:6px;line-height:1.55;font-weight:500}
+.sim-block{position:relative}
+.sim-code{font-family:var(--mono);font-size:11px;color:#e2d9ff;
+  background:rgba(12,8,32,.9);padding:10px 40px 10px 13px;
+  border-radius:6px;border:1px solid rgba(167,139,250,.2);
+  white-space:pre;overflow-x:auto;line-height:1.7;
+  scrollbar-width:thin;scrollbar-color:var(--border2) transparent;}
+.sim-copy{position:absolute;top:6px;right:6px;
+  font-family:var(--mono);font-size:9px;padding:2px 6px;line-height:1.4;
+  border:1px solid rgba(167,139,250,.3);border-radius:3px;
+  background:rgba(167,139,250,.08);color:var(--sim);cursor:pointer;transition:all .12s;}
+.sim-copy:hover{background:rgba(167,139,250,.2)}
+.sim-copy.copied{color:var(--green);border-color:var(--green);background:rgba(52,211,153,.07)}
+/* ARTIFACTS */
+.art-row{padding:7px 0 6px;border-bottom:1px dashed var(--border)}
+.art-row:last-child{border-bottom:none}
+.art-src{font-family:var(--mono);font-size:9.5px;color:var(--accent);letter-spacing:.08em;text-transform:uppercase;font-weight:600}
+.art-path{font-family:var(--mono);font-size:11px;color:#cddaff;margin:3px 0;word-break:break-word;line-height:1.5}
+.art-notes{font-size:11.5px;color:var(--muted);line-height:1.5}
+/* IOC artifacts */
+.ioc-block{margin:4px 0}
+.ioc-grid{display:flex;flex-direction:column;gap:6px;padding:4px 0}
+.ioc-group{display:flex;flex-direction:column;gap:4px}
+.ioc-label{font-size:9.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:2px}
+.ioc-pills{display:flex;flex-wrap:wrap;gap:4px}
+.ioc-pill{display:inline-flex;align-items:center;font-family:var(--mono);font-size:11px;padding:2px 8px;border-radius:4px;cursor:pointer;user-select:none;transition:opacity .15s;border:1px solid}
+.ioc-pill:hover{opacity:.75}
+.ioc-port{color:#67e8f9;background:rgba(103,232,249,.07);border-color:rgba(103,232,249,.2)}
+.ioc-svc{color:#a3e635;background:rgba(163,230,53,.07);border-color:rgba(163,230,53,.2)}
+.ioc-task{color:#fbbf24;background:rgba(251,191,36,.07);border-color:rgba(251,191,36,.2)}
+.ioc-pipe{color:#f0abfc;background:rgba(240,171,252,.07);border-color:rgba(240,171,252,.2)}
+.ioc-ua{color:#94a3b8;background:rgba(148,163,184,.07);border-color:rgba(148,163,184,.2)}
+.ioc-mutex{color:#fb7185;background:rgba(251,113,133,.07);border-color:rgba(251,113,133,.2)}
+/* ATT&CK */
+.attack-row{display:flex;gap:8px;align-items:flex-start;margin-bottom:7px}
+.attack-row:last-child{margin-bottom:0}
+.attack-id a{font-family:var(--mono);font-size:10.5px;padding:2px 7px;border-radius:4px;
+  background:rgba(56,189,248,.09);border:1px solid rgba(56,189,248,.22);
+  color:var(--accent);text-decoration:none;white-space:nowrap;transition:background .12s;display:inline-block;}
+.attack-id a:hover{background:rgba(56,189,248,.18)}
+.attack-detail{flex:1}
+.attack-name{font-size:12px;font-weight:600;color:#c0d0ed}
+.attack-why{font-size:11px;color:var(--muted);margin-top:2px;line-height:1.5}
+/* REFS */
+.refs-section{margin-top:10px;padding-top:8px;border-top:1px solid var(--border)}
+.refs-list{display:flex;flex-direction:column;gap:3px;margin-top:6px}
+.ref-link{display:inline-flex;align-items:center;gap:7px;font-size:11.5px;color:var(--muted);
+  text-decoration:none;padding:2px 0;line-height:1.45;transition:color .12s;}
+.ref-link:hover{color:var(--text)}
+.ref-icon{flex-shrink:0;width:18px;height:15px;border-radius:3px;
+  display:inline-flex;align-items:center;justify-content:center;
+  font-size:8.5px;font-family:var(--mono);font-weight:700;}
+.ref-icon.report{background:rgba(251,146,60,.13);border:1px solid rgba(251,146,60,.28);color:var(--report)}
+.ref-icon.github{background:rgba(129,140,248,.1);border:1px solid rgba(129,140,248,.22);color:var(--accent2)}
+/* LAYOUT */
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:2px}
+mark{background:rgba(251,191,36,.22);color:var(--warn);border-radius:2px;padding:0 1px}
+.empty,.loading{grid-column:1/-1;text-align:center;padding:64px 20px;
+  color:var(--muted);font-family:var(--mono);font-size:12px;}
+.footer-note{max-width:1440px;margin:0 auto;padding:14px 24px 32px;
+  font-size:12px;color:var(--dim);line-height:1.65;border-top:1px solid var(--border);}
+.footer-note code{font-family:var(--mono);font-size:11px}
+@media(max-width:900px){.toolbar{grid-template-columns:1fr 1fr}.two-col{grid-template-columns:1fr}.wordmark{font-size:1.3rem}}
+@media(max-width:560px){.toolbar{grid-template-columns:1fr}.grid{grid-template-columns:1fr;padding:10px}}
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <a href="https://github.com/mthcht/lolexfil" target="_blank" rel="noopener" style="display:flex;align-items:center;flex-shrink:0;">
+    <img src="logo.png" alt="LOLEXFIL logo" style="height:36px;width:36px;object-fit:contain;">
+  </a>
+  <div class="wordmark"><span class="wm-lol">LOL</span><span class="wm-exfil">EXFIL</span></div>
+  <span class="header-count" id="toolCount">— methods</span>
+  <div class="header-spacer"></div>
+  <a class="gh-link" href="https://lolc2.github.io" target="_blank" rel="noopener" title="LOLC2 — Living Off The Land C2 Frameworks using legitimate services for C2 and exfiltration"><img src="https://lolc2.github.io/lolc2.png" alt="LOLC2" style="width:16px;height:16px;object-fit:contain;vertical-align:middle;"> LOLC2</a>
+  <a class="gh-link" href="https://github.com/mthcht/lolexfil" target="_blank" rel="noopener">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/>
+    </svg>
+    GitHub
+  </a>
+</header>
+
+<div class="toolbar">
+  <div class="toolbar-input">
+    <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
+      <circle cx="9" cy="9" r="6"/><line x1="13.5" y1="13.5" x2="18" y2="18"/>
+    </svg>
+    <input type="text" id="search" placeholder="Search tool, pattern, ATT&amp;CK ID, report, simulation…">
+  </div>
+  <select id="category"><option value="">All categories</option></select>
+  <select id="platform"><option value="">All platforms</option></select>
+  <select id="sortBy">
+    <option value="default">Sort: Backup → Cloud → Staging → LOLBin → RMM</option>
+    <option value="alpha_asc">Sort: A → Z</option>
+    <option value="alpha_desc">Sort: Z → A</option>
+    <option value="cat_asc">Sort: Category A → Z</option>
+    <option value="ep_desc">Sort: Most endpoint patterns</option>
+    <option value="net_desc">Sort: Most network patterns</option>
+    <option value="refs_desc">Sort: Most references</option>
+    <option value="sims_desc">Sort: Most simulations</option>
+    <option value="ioc_desc">Sort: Most IOC artifacts</option>
+    <option value="unsigned">Sort: Unsigned tools first</option>
+    <option value="attack_desc">Sort: Most ATT&amp;CK mappings</option>
+  </select>
+  <button class="expand-all" id="expandBtn">Collapse all</button>
+</div>
+
+<div class="count-bar" id="count"></div>
+<div class="grid" id="grid"><div class="loading">Loading tools.json…</div></div>
+
+<div class="footer-note">
+  Detection patterns are hunting pivots — tune to your telemetry schema. Network patterns are the most valuable exfil indicators. Simulation commands use <code>attacker.example.com</code> as placeholder for blue team testing only. Dataset: <code>tools.json</code>.
+</div>
+
+<script>
+const GITHUB_REPO = 'https://github.com/mthcht/lolexfil';
+
+function esc(s){ return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') }
+function escRe(s){ return s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&') }
+function hl(text, q){
+  if(!q) return esc(text);
+  return esc(text).replace(new RegExp('('+escRe(esc(q))+')', 'gi'), '<mark>$1</mark>');
+}
+function uniqueValues(items, key){
+  return [...new Set(items.map(x=>x[key]).filter(Boolean))].sort();
+}
+function matchTool(t, q, cat, plat){
+  if(cat && t.category !== cat) return false;
+  if(plat && t.platform !== plat) return false;
+  if(!q) return true;
+  const ql = q.toLowerCase();
+  const flatten = arr => (arr||[]).flatMap(p=>[
+    p.pattern,p.detect_type,p.purpose,...((p.arguments||[]).flatMap(a=>[a.argument,a.why]))
+  ]);
+  const hay = [
+    t.name,t.category,t.platform,t.overview,
+    ...(t.signer||[]),
+    t.related_protocol||'',
+    ...((t.ioc_artifacts?.user_agents)||[]),
+    ...((t.ioc_artifacts?.named_pipes)||[]),
+    ...((t.ioc_artifacts?.service_names)||[]),
+    ...((t.ioc_artifacts?.scheduled_tasks)||[]),
+    ...((t.ioc_artifacts?.mutexes)||[]),
+    ...(t.telemetry_overview||[]),
+    ...(t.network_indicators||[]),
+    ...(t.staging_behaviors||[]),
+    ...(t.expected_child_processes||[]),
+    ...((t.attack_mappings||[]).flatMap(m=>[m.id,m.name,m.why])),
+    ...flatten(t.endpoint_detection_patterns),
+    ...flatten(t.network_detection_patterns),
+    ...((t.detailed_artifacts||[]).flatMap(a=>[a.source,a.path,a.notes])),
+    ...((t.refs||[]).map(r=>r.label)),
+    ...((t.simulation_examples||[]).flatMap(s=>[s.description,s.command]))
+  ].join(' ').toLowerCase();
+  return hay.includes(ql);
+}
+
+function makeCopyBtn(text, cls){
+  const btn = document.createElement('button');
+  btn.className = cls||'copy-btn'; btn.textContent = 'copy';
+  btn.addEventListener('click', e=>{
+    e.stopPropagation();
+    navigator.clipboard.writeText(text).then(()=>{
+      btn.textContent='✓'; btn.classList.add('copied');
+      setTimeout(()=>{ btn.textContent='copy'; btn.classList.remove('copied'); },1800);
+    });
+  });
+  return btn;
+}
+
+function mkEl(tag, cls, html){
+  const el=document.createElement(tag);
+  if(cls) el.className=cls;
+  if(html!==undefined) el.innerHTML=html;
+  return el;
+}
+
+function buildContributeUrl(toolName){
+  const title = encodeURIComponent(`[Correction] ${toolName}`);
+  const body = encodeURIComponent(
+`**Tool:** ${toolName}
+
+**What is wrong / missing:**
+
+
+**Suggested fix:**
+
+
+**Source / evidence:**
+
+`);
+  return `${GITHUB_REPO}/issues/new?title=${title}&body=${body}&labels=correction`;
+}
+
+function renderPatternBlock(pats, isNetwork, q, expanded){
+  if(!pats || !pats.length) return null;
+  const cls = isNetwork ? 'nets' : 'pats';
+  const icon = isNetwork ? '🌐' : '💻';
+  const label = isNetwork ? 'Network detection patterns' : 'Endpoint detection patterns';
+  const exfilPats    = pats.filter(p=>p.detects?.exfil_action);
+  const presencePats = pats.filter(p=>!p.detects?.exfil_action);
+
+  const det = mkEl('details', cls);
+  if(expanded) det.open=true;
+  const summ = mkEl('summary');
+  summ.innerHTML = `<span class="sum-icon">${icon}</span> ${label}<span class="det-count">${pats.length}</span>`;
+  det.appendChild(summ);
+
+  function renderGroup(gpats, labelText, labelCls, rowCls){
+    if(!gpats.length) return;
+    det.appendChild(mkEl('div','pat-group-label '+labelCls, labelText));
+    for(const p of gpats){
+      const row = mkEl('div', 'pattern-row' + (rowCls?' '+rowCls:''));
+      const codeDiv = mkEl('div','pat-code');
+      const pt = mkEl('span','pat-text'); pt.innerHTML=hl(p.pattern,q);
+      codeDiv.appendChild(pt); codeDiv.appendChild(makeCopyBtn(p.pattern));
+      row.appendChild(codeDiv);
+      const flags=mkEl('div','pat-flags');
+      flags.innerHTML=`<span class="pflag type">${esc((p.detect_type||'').replaceAll('_',' '))}</span>`+
+        `<span class="pflag ${p.detects?.exfil_action?'yes':'no'}">exfil: ${p.detects?.exfil_action?'yes':'no'}</span>`+
+        `<span class="pflag ${p.detects?.tool_presence?'yes':'no'}">presence: ${p.detects?.tool_presence?'yes':'no'}</span>`;
+      row.appendChild(flags);
+      if(p.purpose) row.appendChild(mkEl('div','pat-purpose',hl(p.purpose,q)));
+      for(const a of (p.arguments||[])){
+        if(!a.why) continue;
+        const ad=mkEl('div','pat-args',`<div class="pat-arg-name">${esc(a.argument)}</div><div class="pat-arg-why">${hl(a.why,q)}</div>`);
+        row.appendChild(ad);
+      }
+      det.appendChild(row);
+    }
+  }
+  renderGroup(exfilPats,    '⚡ Exfiltration behavior', 'exfil', isNetwork?'net-pattern-row':'');
+  renderGroup(presencePats, '🔍 Tool presence',         'presence', isNetwork?'net-pattern-row':'');
+  return det;
+}
+
+let TOOLS=[], expandedAll=true;
+
+function render(tools, q){
+  const grid=document.getElementById('grid');
+  const countEl=document.getElementById('count');
+  grid.innerHTML='';
+  countEl.textContent=`${tools.length} method${tools.length===1?'':'s'} shown`;
+  document.getElementById('toolCount').textContent=`${tools.length} methods`;
+
+  if(!tools.length){
+    grid.appendChild(mkEl('div','empty','No methods match — try a different query.'));
+    return;
+  }
+
+  // Category dividers in default sort mode
+  const mode = document.getElementById('sortBy')?.value || 'default';
+  let lastCat = null;
+
+  for(const t of tools){
+    // Inject category divider header when category changes (only in non-alpha sorts)
+    if(mode !== 'alpha_asc' && mode !== 'alpha_desc'){
+      if(t.category !== lastCat){
+        const div = document.createElement('div');
+        div.className = 'cat-divider';
+        const catIcons = {
+          'Protocol':'⚡','SSH & Network':'🔐','Staging':'📦',
+          'Scripting & LOLBin':'💻','SaaS & Web':'🌐','Cloud Storage':'☁️',
+          'Sync & Transfer':'🔄','Backup':'💾','Remote Access':'🖥️'
+        };
+        const icon = catIcons[t.category] || '📁';
+        div.innerHTML = `<span class="cat-div-icon">${icon}</span>${esc(t.category)}`;
+        grid.appendChild(div);
+        lastCat = t.category;
+      }
+    }
+
+    const card=mkEl('div','card');
+
+    // Name row + contribute button
+    const nameRow=mkEl('div','card-name-row');
+    nameRow.appendChild(mkEl('div','card-name',hl(t.name,q)));
+    const contrib=mkEl('a','contribute-btn','✎ Contribute');
+    contrib.href=buildContributeUrl(t.name);
+    contrib.target='_blank'; contrib.rel='noopener noreferrer';
+    contrib.title='Report an error or suggest an addition for this tool';
+    nameRow.appendChild(contrib);
+    // Per-card collapse toggle
+    const toggle = mkEl('button','card-toggle');
+    toggle.title = 'Expand / collapse this card';
+    toggle.addEventListener('click', (e) => {
+      e.stopPropagation();
+      card.classList.toggle('collapsed');
+    });
+    nameRow.appendChild(toggle);
+    card.appendChild(nameRow);
+
+    // Badges
+    const signers = (t.signer||[]);
+    const signerBadges = signers.map(s=>{
+      const isUnknown = s.startsWith('unknown');
+      const isUnsigned = s === 'not signed';
+      const cls = isUnknown ? 'badge signer-unknown' : isUnsigned ? 'badge signer-unsigned' : 'badge signer';
+      return `<span class="${cls}" title="Code signer">✍ ${esc(s)}</span>`;
+    }).join('');
+    const protoBadge = t.related_protocol
+      ? `<span class="badge proto-link" title="Click to view parent protocol" data-proto="${esc(t.related_protocol)}">🔗 ${esc(t.related_protocol)}</span>`
+      : '';
+    card.appendChild(mkEl('div','card-badges',
+      `<span class="badge">${esc(t.category)}</span><span class="badge plat">${esc(t.platform)}</span>${protoBadge}${signerBadges}`));
+
+    // Overview
+    card.appendChild(mkEl('p','overview',hl(t.overview,q)));
+
+    // Everything below overview collapses
+    const collapsible = mkEl('div','card-collapsible');
+
+    // Endpoint patterns
+    const epDet = renderPatternBlock(t.endpoint_detection_patterns, false, q, expandedAll);
+    if(epDet) collapsible.appendChild(epDet);
+
+    // Network patterns
+    const npDet = renderPatternBlock(t.network_detection_patterns, true, q, expandedAll);
+    if(npDet) collapsible.appendChild(npDet);
+
+    // Simulations
+    const sims=t.simulation_examples||[];
+    if(sims.length){
+      const simDet=mkEl('details','sims');
+      if(expandedAll) simDet.open=true;
+      const simSumm=mkEl('summary');
+      simSumm.innerHTML=`<span class="sum-icon" style="color:var(--sim)">⚙</span> Simulation examples<span class="det-count">${sims.length}</span>`;
+      simDet.appendChild(simSumm);
+      for(const s of sims){
+        const row=mkEl('div','sim-row');
+        row.appendChild(mkEl('div','sim-desc',hl(s.description,q)));
+        const block=mkEl('div','sim-block');
+        const code=mkEl('pre','sim-code'); code.textContent=s.command;
+        block.appendChild(code); block.appendChild(makeCopyBtn(s.command,'sim-copy'));
+        row.appendChild(block); simDet.appendChild(row);
+      }
+      collapsible.appendChild(simDet);
+    }
+
+    // Two-col
+    const two=mkEl('div','two-col');
+    const lc=mkEl('div');
+    if((t.telemetry_overview||[]).length){
+      lc.appendChild(mkEl('div','sec-label','Telemetry'));
+      const ul=mkEl('ul','pill-list');
+      (t.telemetry_overview||[]).forEach(x=>{ const li=mkEl('li'); li.innerHTML=hl(x,q); ul.appendChild(li); });
+      lc.appendChild(ul);
+    }
+    if((t.network_indicators||[]).length){
+      lc.appendChild(mkEl('div','sec-label','Network indicators'));
+      const ul=mkEl('ul','pill-list');
+      (t.network_indicators||[]).forEach(x=>{ const li=mkEl('li'); li.innerHTML=hl(x,q); ul.appendChild(li); });
+      lc.appendChild(ul);
+    }
+    two.appendChild(lc);
+    const rc=mkEl('div');
+    if((t.staging_behaviors||[]).length){
+      rc.appendChild(mkEl('div','sec-label purple','Staging behaviors'));
+      const ul=mkEl('ul','pill-list');
+      (t.staging_behaviors||[]).forEach(x=>{ const li=mkEl('li'); li.innerHTML=hl(x,q); ul.appendChild(li); });
+      rc.appendChild(ul);
+    }
+    if((t.expected_child_processes||[]).length){
+      rc.appendChild(mkEl('div','sec-label purple','Expected child processes'));
+      const ul=mkEl('ul','pill-list');
+      (t.expected_child_processes||[]).forEach(x=>{ const li=mkEl('li'); li.innerHTML=hl(x,q); ul.appendChild(li); });
+      rc.appendChild(ul);
+    }
+    two.appendChild(rc);
+    collapsible.appendChild(two);
+
+    // ATT&CK
+    if((t.attack_mappings||[]).length){
+      collapsible.appendChild(mkEl('div','sec-label warn','ATT\u0026CK mappings'));
+      for(const m of t.attack_mappings){
+        collapsible.appendChild(mkEl('div','attack-row',
+          `<div class="attack-id"><a href="https://attack.mitre.org/techniques/${esc(m.id.replace('.','/'))}" target="_blank" rel="noopener">${esc(m.id)}</a></div>`+
+          `<div class="attack-detail"><div class="attack-name">${hl(m.name,q)}</div><div class="attack-why">${hl(m.why,q)}</div></div>`));
+      }
+    }
+
+    // DFIR artifacts
+    if((t.detailed_artifacts||[]).length){
+      const artsDet=mkEl('details','arts');
+      if(expandedAll) artsDet.open=true;
+      const artsSumm=mkEl('summary');
+      artsSumm.innerHTML=`<span class="sum-icon" style="color:var(--muted)">🗂</span> DFIR artifacts<span class="det-count">${t.detailed_artifacts.length}</span>`;
+      artsDet.appendChild(artsSumm);
+      for(const a of t.detailed_artifacts){
+        artsDet.appendChild(mkEl('div','art-row',
+          `<div class="art-src">${esc(a.source)}</div>`+
+          `<div class="art-path">${hl(a.path,q)}</div>`+
+          `<div class="art-notes">${hl(a.notes,q)}</div>`));
+      }
+      collapsible.appendChild(artsDet);
+    }
+
+    // IOC Artifacts (UA, pipes, services, tasks, ports, mutexes)
+    const ioc=t.ioc_artifacts||{};
+    const iocRows=[
+      {icon:'🌐',label:'Dest. Port',   vals:(ioc.destination_ports||[]).map(String),  cls:'ioc-port'},
+      {icon:'🔧',label:'Service Name', vals:ioc.service_names||[],                    cls:'ioc-svc'},
+      {icon:'📅',label:'Sched. Task',  vals:ioc.scheduled_tasks||[],                  cls:'ioc-task'},
+      {icon:'🔗',label:'Named Pipe',   vals:ioc.named_pipes||[],                      cls:'ioc-pipe'},
+      {icon:'🤖',label:'User-Agent',   vals:ioc.user_agents||[],                      cls:'ioc-ua'},
+      {icon:'🔒',label:'Mutex',        vals:ioc.mutexes||[],                          cls:'ioc-mutex'},
+    ].filter(r=>r.vals.length>0);
+    if(iocRows.length){
+      const iocDet=mkEl('details','ioc-block');
+      if(expandedAll) iocDet.open=true;
+      const iocSumm=mkEl('summary');
+      const totalIoc=iocRows.reduce((s,r)=>s+r.vals.length,0);
+      iocSumm.innerHTML=`<span class="sum-icon" style="color:#a78bfa">🎯</span> IOC artifacts<span class="det-count">${totalIoc}</span>`;
+      iocDet.appendChild(iocSumm);
+      const iocGrid=mkEl('div','ioc-grid');
+      for(const row of iocRows){
+        const grp=mkEl('div','ioc-group');
+        grp.innerHTML=`<div class="ioc-label">${row.icon} ${row.label}</div>`;
+        const pills=mkEl('div','ioc-pills');
+        for(const v of row.vals){
+          const pill=mkEl('span',`ioc-pill ${row.cls}`,hl(v,q));
+          // copy on click
+          pill.title='Click to copy';
+          pill.addEventListener('click',()=>{navigator.clipboard.writeText(v);
+            const orig=pill.textContent; pill.textContent='✓'; setTimeout(()=>{pill.innerHTML=hl(v,q);},800);});
+          pills.appendChild(pill);
+        }
+        grp.appendChild(pills);
+        iocGrid.appendChild(grp);
+      }
+      iocDet.appendChild(iocGrid);
+      collapsible.appendChild(iocDet);
+    }
+
+    // References
+    const refs=t.refs||[];
+    if(refs.length){
+      const rs=mkEl('div','refs-section');
+      const rc2=refs.filter(r=>r.type==='report').length, gc=refs.filter(r=>r.type==='github').length;
+      const parts=[]; if(rc2) parts.push(`${rc2} report${rc2>1?'s':''}`); if(gc) parts.push(`${gc} repo${gc>1?'s':''}`);
+      rs.appendChild(mkEl('div','sec-label orange',`References — ${parts.join(' · ')}`));
+      const rl=mkEl('div','refs-list');
+      for(const r of refs){
+        const a=mkEl('a','ref-link'); a.href=r.url; a.target='_blank'; a.rel='noopener noreferrer';
+        const icon=mkEl('span',`ref-icon ${r.type}`); icon.textContent=r.type==='report'?'↗':'GH';
+        a.appendChild(icon);
+        const ls=mkEl('span'); ls.innerHTML=hl(r.label,q); a.appendChild(ls);
+        rl.appendChild(a);
+      }
+      rs.appendChild(rl); collapsible.appendChild(rs);
+    }
+
+    card.appendChild(collapsible);
+    grid.appendChild(card);
+  }
+}
+
+function initSelects(){
+  const cs=document.getElementById('category'), ps=document.getElementById('platform');
+  uniqueValues(TOOLS,'category').forEach(v=>{ const o=document.createElement('option'); o.value=v; o.textContent=v; cs.appendChild(o); });
+  uniqueValues(TOOLS,'platform').forEach(v=>{ const o=document.createElement('option'); o.value=v; o.textContent=v; ps.appendChild(o); });
+}
+// ── Category sort priority (default view) ───────────────────────────────────
+const CAT_ORDER = {
+  'Backup':          0,   // Backup first
+  'Cloud Storage':   1,
+  'Sync & Transfer': 2,
+  'SaaS & Web':      3,
+  'Staging':         4,
+  'Scripting & LOLBin': 5,
+  'SSH & Network':   6,
+  'Protocol':        7,
+  'Remote Access':   9,   // RMM last
+};
+function catPriority(t){ return CAT_ORDER[t.category] ?? 8; }
+
+function iocCount(t){
+  const ioc = t.ioc_artifacts || {};
+  return ['user_agents','named_pipes','service_names','scheduled_tasks','destination_ports','mutexes']
+    .reduce((s,k)=>s+(ioc[k]||[]).length, 0);
+}
+
+function sortTools(arr, mode){
+  const copy = [...arr];
+  switch(mode){
+    case 'default':
+      return copy.sort((a,b)=>{
+        const pc = catPriority(a) - catPriority(b);
+        if(pc !== 0) return pc;
+        // Within Protocol: parent protocol pages first, tool pages after
+        const aIsProto = !a.related_protocol ? 0 : 1;
+        const bIsProto = !b.related_protocol ? 0 : 1;
+        if(aIsProto !== bIsProto) return aIsProto - bIsProto;
+        return a.name.localeCompare(b.name);
+      });
+    case 'alpha_asc':
+      return copy.sort((a,b)=>a.name.localeCompare(b.name));
+    case 'alpha_desc':
+      return copy.sort((a,b)=>b.name.localeCompare(a.name));
+    case 'cat_asc':
+      return copy.sort((a,b)=>{
+        const cc = a.category.localeCompare(b.category);
+        return cc !== 0 ? cc : a.name.localeCompare(b.name);
+      });
+    case 'ep_desc':
+      return copy.sort((a,b)=>(b.endpoint_detection_patterns||[]).length-(a.endpoint_detection_patterns||[]).length||a.name.localeCompare(b.name));
+    case 'net_desc':
+      return copy.sort((a,b)=>(b.network_detection_patterns||[]).length-(a.network_detection_patterns||[]).length||a.name.localeCompare(b.name));
+    case 'refs_desc':
+      return copy.sort((a,b)=>(b.refs||[]).length-(a.refs||[]).length||a.name.localeCompare(b.name));
+    case 'sims_desc':
+      return copy.sort((a,b)=>(b.simulation_examples||[]).length-(a.simulation_examples||[]).length||a.name.localeCompare(b.name));
+    case 'ioc_desc':
+      return copy.sort((a,b)=>iocCount(b)-iocCount(a)||a.name.localeCompare(b.name));
+    case 'unsigned':
+      return copy.sort((a,b)=>{
+        const au = (a.signer||[]).includes('not signed') ? 0 : 1;
+        const bu = (b.signer||[]).includes('not signed') ? 0 : 1;
+        return au - bu || a.name.localeCompare(b.name);
+      });
+    case 'attack_desc':
+      return copy.sort((a,b)=>(b.attack_mappings||[]).length-(a.attack_mappings||[]).length||a.name.localeCompare(b.name));
+    default:
+      return copy;
+  }
+}
+
+function apply(){
+  const q    = document.getElementById('search').value.trim().toLowerCase();
+  const cat  = document.getElementById('category').value;
+  const plat = document.getElementById('platform').value;
+  const mode = document.getElementById('sortBy').value;
+  const filtered = TOOLS.filter(t=>matchTool(t,q,cat,plat));
+  render(sortTools(filtered, mode), q);
+}
+document.getElementById('expandBtn').addEventListener('click',()=>{
+  expandedAll=!expandedAll;
+  document.getElementById('expandBtn').textContent=expandedAll?'Collapse all':'Expand all';
+  // Toggle card-level collapse
+  document.querySelectorAll('.card').forEach(c=>{
+    c.classList.toggle('collapsed', !expandedAll);
+  });
+  // Toggle inner details when expanding
+  if(expandedAll){
+    document.querySelectorAll('details.pats,details.nets,details.arts,details.sims,details.ioc-block').forEach(d=>{ d.open=true; });
+  }
+});
+document.getElementById('search').addEventListener('input',apply);
+document.getElementById('category').addEventListener('change',apply);
+document.getElementById('platform').addEventListener('change',apply);
+document.getElementById('sortBy').addEventListener('change',apply);
+document.addEventListener('click', e=>{
+  const badge = e.target.closest('.proto-link');
+  if(!badge) return;
+  const protoName = badge.dataset.proto;
+  if(!protoName) return;
+  // Search for that protocol tool by name
+  const q = document.getElementById('search');
+  q.value = protoName;
+  apply();
+  // Scroll to first matching card
+  setTimeout(()=>{
+    const first = document.querySelector('.card');
+    if(first) first.scrollIntoView({behavior:'smooth', block:'start'});
+  }, 100);
+});
+
+fetch('tools.json')
+  .then(r=>{ if(!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+  .then(data=>{ TOOLS=data; initSelects(); apply(); })
+  .catch(err=>{
+    document.getElementById('grid').innerHTML=
+      `<div class="empty" style="color:var(--danger)">Failed to load tools.json: ${esc(err.message)}<br>
+      <span style="font-size:11px;margin-top:6px;display:block;color:var(--muted)">
+        Serve over HTTP — <code>python3 -m http.server</code>
+      </span></div>`;
+  });
+</script>
+</body>
+</html>
