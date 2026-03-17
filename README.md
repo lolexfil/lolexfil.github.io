@@ -3,15 +3,16 @@
 
 https://lolexfil.github.io
 
-Reference for data exfiltration methods from trusted tools (LOLBins, RMM tools, backup softwares, cloud storage services, tunneling, browser extensions and more)
+Reference for data exfiltration methods using trusted tools - LOLBins, RMM tools, backup software, cloud storage services, tunneling protocols, browser extensions, data bouncing, and more.
+200 tools across 10 categories, each with:
 
-hundreds of tools across 9 categories, each with:
 - endpoint and network detection patterns
 - simulation commands
-- DFIR artifacts
-- IOC artifacts (ports, pipes, service names, mutexes, User-Agents...)
+- DFIR artifacts and forensic paths
+- IOC artifacts (ports, pipes, service names, mutexes, User-Agents…)
+- MITRE ATT&CK mappings
 - code signer info
-- references to threat reports and github projects
+- references to threat reports and GitHub projects
 
 ---
 
