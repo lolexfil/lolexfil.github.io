@@ -64,6 +64,7 @@ select{padding-left:10px;cursor:pointer}
 /* GRID */
 .grid{max-width:1440px;margin:0 auto;padding:12px 24px 56px;
   display:grid;grid-template-columns:repeat(auto-fill,minmax(420px,1fr));gap:10px;}
+.grid.grid-solo{grid-template-columns:1fr;}
 /* CARD */
 .card{background:var(--surface);border:1px solid var(--border);border-radius:2px;
   padding:14px 16px;display:flex;flex-direction:column;
@@ -447,6 +448,7 @@ function render(tools, q){
   const grid=document.getElementById('grid');
   const countEl=document.getElementById('count');
   grid.innerHTML='';
+  grid.classList.toggle('grid-solo', tools.length === 1);
   countEl.textContent=`${tools.length} method${tools.length===1?'':'s'} shown`;
   document.getElementById('toolCount').textContent=`${tools.length} methods`;
 
@@ -488,6 +490,16 @@ function render(tools, q){
     anchor.addEventListener('click', (e)=>{
       e.stopPropagation();
       const slug = toolSlug(t.name);
+      const currentHash = decodeURIComponent(location.hash.slice(1));
+      // Toggle: if already viewing this tool's permalink, go back
+      if(currentHash === 'tool=' + slug){
+        history.pushState(null, '', location.pathname + location.search);
+        document.getElementById('search').value = '';
+        apply();
+        anchor.textContent='↩ back'; anchor.classList.add('copied');
+        setTimeout(()=>{ anchor.textContent='# link'; anchor.classList.remove('copied'); }, 1000);
+        return;
+      }
       const url = location.origin + location.pathname + '#tool=' + slug;
       // Navigate to the hash (triggers applyHash via hashchange)
       location.hash = 'tool=' + slug;
@@ -841,6 +853,16 @@ document.addEventListener('click', e=>{
   if(catLink){
     const cat = catLink.dataset.cat;
     const slug = catSlug(cat);
+    const currentHash = decodeURIComponent(location.hash.slice(1));
+    // Toggle: if already viewing this category's permalink, go back
+    if(currentHash === 'cat=' + slug){
+      history.pushState(null, '', location.pathname + location.search);
+      document.getElementById('category').value = '';
+      apply();
+      catLink.textContent='↩ back'; catLink.classList.add('copied');
+      setTimeout(()=>{ catLink.textContent='# link'; catLink.classList.remove('copied'); }, 1000);
+      return;
+    }
     const url = location.origin + location.pathname + '#cat=' + slug;
     location.hash = 'cat=' + slug;
     const doCopy = ()=>{
@@ -913,7 +935,16 @@ fetch('tools.json')
         Serve over HTTP — <code>python3 -m http.server</code>
       </span></div>`;
   });
-window.addEventListener('hashchange', ()=>{ applyHash(); });
+window.addEventListener('hashchange', ()=>{ 
+  if(!location.hash || location.hash === '#'){
+    // Hash cleared (e.g. browser back button) — restore full view
+    document.getElementById('search').value = '';
+    document.getElementById('category').value = '';
+    apply();
+  } else {
+    applyHash();
+  }
+});
 </script>
 </body>
 </html>
