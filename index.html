@@ -72,16 +72,16 @@ select{padding-left:10px;cursor:pointer}
 .card:hover{border-color:var(--border2);}
 .card-name-row{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:5px}
 .card-name{font-size:13px;font-weight:700;letter-spacing:.01em;flex:1;min-width:0;font-family:var(--mono);}
-.tool-anchor{font-family:var(--mono);font-size:9px;padding:2px 5px;
-  border:1px solid transparent;border-radius:2px;color:var(--dim);text-decoration:none;
-  cursor:pointer;background:transparent;transition:all .1s;white-space:nowrap;margin-top:1px;flex-shrink:0;}
-.tool-anchor:hover{color:var(--accent);border-color:var(--accent);}
-.tool-anchor.copied{color:var(--green);border-color:var(--green);}
-.cat-divider .cat-link{font-size:9px;font-family:var(--mono);color:var(--dim);
-  text-decoration:none;padding:1px 5px;border:1px solid transparent;border-radius:2px;
-  cursor:pointer;transition:all .1s;margin-left:4px;}
-.cat-divider .cat-link:hover{color:var(--accent);border-color:var(--accent);}
-.cat-divider .cat-link.copied{color:var(--green);}
+.tool-anchor{font-family:var(--mono);font-size:9px;padding:2px 6px;
+  border:1px solid var(--border2);border-radius:2px;color:var(--muted);text-decoration:none;
+  cursor:pointer;background:rgba(56,189,248,.04);transition:all .15s;white-space:nowrap;margin-top:1px;flex-shrink:0;}
+.tool-anchor:hover{color:var(--accent);border-color:var(--accent);background:rgba(56,189,248,.08);}
+.tool-anchor.copied{color:var(--green);border-color:var(--green);background:rgba(52,211,153,.08);}
+.cat-divider .cat-link{font-size:9px;font-family:var(--mono);color:var(--muted);
+  text-decoration:none;padding:1px 6px;border:1px solid var(--border2);border-radius:2px;
+  cursor:pointer;transition:all .15s;margin-left:4px;background:rgba(56,189,248,.04);}
+.cat-divider .cat-link:hover{color:var(--accent);border-color:var(--accent);background:rgba(56,189,248,.08);}
+.cat-divider .cat-link.copied{color:var(--green);border-color:var(--green);}
 .card-toggle{flex-shrink:0;font-family:var(--mono);font-size:9px;padding:2px 6px;
   border:1px solid var(--dim);border-radius:2px;background:transparent;color:var(--dim);
   cursor:pointer;transition:all .1s;line-height:1.4;margin-top:1px;user-select:none;}
@@ -277,6 +277,7 @@ mark{background:rgba(251,191,36,.22);color:var(--warn);border-radius:2px;padding
   <div class="wordmark"><span class="wm-lol">LOL</span><span class="wm-exfil">EXFIL</span></div>
   <span class="header-count" id="toolCount">— methods</span>
   <div class="header-spacer"></div>
+  <a class="gh-link" href="https://lolfsaas.github.io" target="_blank" rel="noopener" title="LOLFSaaS — Living Off Free SaaS: free SaaS services abused for offensive operations"><img src="https://lolfsaas.github.io/lolfsaas.png" alt="LOLFSaaS" style="width:16px;height:16px;object-fit:contain;vertical-align:middle;"> LOLFSaaS</a>
   <a class="gh-link" href="https://lolc2.github.io" target="_blank" rel="noopener" title="LOLC2 — Living Off The Land C2 Frameworks using legitimate services for C2 and exfiltration"><img src="https://lolc2.github.io/lolc2.png" alt="LOLC2" style="width:16px;height:16px;object-fit:contain;vertical-align:middle;"> LOLC2</a>
   <a class="gh-link" href="https://github.com/lolexfil/lolexfil.github.io" target="_blank" rel="noopener">
     <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
@@ -473,7 +474,7 @@ function render(tools, q){
           'Sync & Transfer':'🔄','Backup':'💾','Remote Access':'🖥️'
         };
         const icon = catIcons[t.category] || '📁';
-        div.innerHTML = `<span class="cat-div-icon">${icon}</span>${esc(t.category)}<span class="cat-link" data-cat="${esc(t.category)}" title="Copy link to this category"># link</span>`;
+        div.innerHTML = `<span class="cat-div-icon">${icon}</span>${esc(t.category)}<span class="cat-link" data-cat="${esc(t.category)}" title="Expand category + copy link">⤢ expand / link</span>`;
         grid.appendChild(div);
         lastCat = t.category;
       }
@@ -485,8 +486,8 @@ function render(tools, q){
     const nameRow=mkEl('div','card-name-row');
     nameRow.appendChild(mkEl('div','card-name',hl(t.name,q)));
     // Tool permalink button
-    const anchor = mkEl('span','tool-anchor','# link');
-    anchor.title = 'Click: go to permalink. Right-click or long-press to copy URL.';
+    const anchor = mkEl('span','tool-anchor','⤢ expand / link');
+    anchor.title = 'Click: expand full-screen view + copy link. Click again to return.';
     anchor.addEventListener('click', (e)=>{
       e.stopPropagation();
       const slug = toolSlug(t.name);
@@ -497,7 +498,7 @@ function render(tools, q){
         document.getElementById('search').value = '';
         apply();
         anchor.textContent='↩ back'; anchor.classList.add('copied');
-        setTimeout(()=>{ anchor.textContent='# link'; anchor.classList.remove('copied'); }, 1000);
+        setTimeout(()=>{ anchor.textContent='⤢ expand / link'; anchor.classList.remove('copied'); }, 1000);
         return;
       }
       const url = location.origin + location.pathname + '#tool=' + slug;
@@ -509,7 +510,7 @@ function render(tools, q){
           navigator.clipboard.writeText(url).catch(()=>fallbackCopy(url));
         } else { fallbackCopy(url); }
         anchor.textContent='✓ copied'; anchor.classList.add('copied');
-        setTimeout(()=>{ anchor.textContent='# link'; anchor.classList.remove('copied'); }, 1400);
+        setTimeout(()=>{ anchor.textContent='⤢ expand / link'; anchor.classList.remove('copied'); }, 1400);
       };
       doCopy();
     });
@@ -860,7 +861,7 @@ document.addEventListener('click', e=>{
       document.getElementById('category').value = '';
       apply();
       catLink.textContent='↩ back'; catLink.classList.add('copied');
-      setTimeout(()=>{ catLink.textContent='# link'; catLink.classList.remove('copied'); }, 1000);
+      setTimeout(()=>{ catLink.textContent='⤢ expand / link'; catLink.classList.remove('copied'); }, 1000);
       return;
     }
     const url = location.origin + location.pathname + '#cat=' + slug;
@@ -870,7 +871,7 @@ document.addEventListener('click', e=>{
         navigator.clipboard.writeText(url).catch(()=>fallbackCopy(url));
       } else { fallbackCopy(url); }
       catLink.textContent='✓ copied'; catLink.classList.add('copied');
-      setTimeout(()=>{ catLink.textContent='# link'; catLink.classList.remove('copied'); }, 1400);
+      setTimeout(()=>{ catLink.textContent='⤢ expand / link'; catLink.classList.remove('copied'); }, 1400);
     };
     doCopy();
   }
