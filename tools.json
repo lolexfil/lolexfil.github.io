@@ -27383,6 +27383,46 @@
           "tool_presence": true,
           "exfil_action": true
         }
+      },
+      {
+        "pattern": "Cortex XDR: ICMP echo-request packets with ICMP_LENGTH > 100 bytes",
+        "detect_type": "exfil_action",
+        "purpose": "Cortex XDR logs ICMP_LENGTH per packet. Normal ping uses 32-64 bytes; any payload >100 bytes is anomalous. Filter on ICMP_TYPE=8 (echo-request) with oversized ICMP_LENGTH field.",
+        "arguments": [],
+        "detects": {
+          "tool_presence": false,
+          "exfil_action": true
+        }
+      },
+      {
+        "pattern": "Cortex XDR: Sustained MTU-filling ICMP packets (ICMP_LENGTH \u2265 1400) to same destination",
+        "detect_type": "exfil_action",
+        "purpose": "Chunked exfil produces streams of 1408-byte ICMP packets (MTU-filling). Count packets with ICMP_LENGTH \u2265 1400 grouped by source host and destination IP \u2014 alert when count exceeds 5. Real-world exfil confirmed with 10+ consecutive 1408-byte packets.",
+        "arguments": [],
+        "detects": {
+          "tool_presence": false,
+          "exfil_action": true
+        }
+      },
+      {
+        "pattern": "Cortex XDR: ICMP_DATA payload not matching Windows default ping pattern (hex 6162636465666768)",
+        "detect_type": "exfil_action",
+        "purpose": "Windows default ping fills payload with 'abcdefghijklmnop' (hex 6162636465666768). Cortex logs the full ICMP_DATA hex content \u2014 any oversized payload NOT containing this pattern is anomalous. Exfil payloads typically show hex-encoded base64 or encrypted data instead.",
+        "arguments": [],
+        "detects": {
+          "tool_presence": false,
+          "exfil_action": true
+        }
+      },
+      {
+        "pattern": "Cortex XDR: High-rate oversized ICMP to single external IP (>10 packets/min or >50KB/min)",
+        "detect_type": "exfil_action",
+        "purpose": "Aggregate oversized ICMP packets (ICMP_LENGTH >100) per minute, grouped by source host and destination IP. Alert on rate >10 packets/min or cumulative bytes >50KB/min. Combines rate anomaly with byte volume for robust detection of chunked exfil sessions.",
+        "arguments": [],
+        "detects": {
+          "tool_presence": false,
+          "exfil_action": true
+        }
       }
     ],
     "network_detection_patterns": [
@@ -27478,13 +27518,15 @@
       }
     ],
     "telemetry_overview": [
-      "Packet capture (PCAP) \u2014 only source for full payload inspection",
+      "Packet capture (PCAP) \u2014 only universal source for full payload inspection",
       "Zeek conn.log and weird.log \u2014 ICMP anomalies logged automatically",
       "Suricata/Snort \u2014 ICMP payload content rules (see detection rules below)",
       "NetFlow/IPFIX \u2014 ICMP volume and rate anomalies (no payload content)",
       "Windows ETW (Event Tracing) \u2014 ICMP send/receive via WFP (Windows Filtering Platform)",
       "Process telemetry \u2014 parent process of ping.exe, custom tool execution",
-      "Firewall/NGFW \u2014 ICMP with payload inspection (Palo Alto, Fortinet, CheckPoint)"
+      "Firewall/NGFW \u2014 ICMP with payload inspection (Palo Alto, Fortinet, CheckPoint)",
+      "\u26a0\ufe0f EDR BLIND SPOT: Surprisingly few EDRs have built-in ICMP payload detection. Most EDRs only log process execution (ping.exe) but not the actual ICMP packet data content. Additionally, ICMP traffic is often excluded from SIEM log ingestion to economize on volumetry, making ICMP tunneling a highly effective exfiltration method that flies under the radar of most security stacks.",
+      "\u2705 EXCEPTION \u2014 Cortex XDR: Palo Alto Cortex XDR is a notable exception \u2014 it logs full ICMP packet metadata including ICMP_TYPE, ICMP_CODE, ICMP_LENGTH, and critically ICMP_DATA (the full hex-encoded payload content). This makes Cortex XDR uniquely capable of detecting ICMP data exfiltration at the endpoint level through custom detection rules."
     ],
     "network_indicators": [
       "ICMP echo-request payload > 100 bytes to external IP",
@@ -27493,7 +27535,8 @@
       "ptunnel magic bytes 0x45525200 in ICMP payload",
       "High-entropy ICMP payload (compressed or encrypted data)",
       "ICMP asymmetry: bytes_out >> bytes_in on ICMP flow",
-      "Workstation with no ICMP history suddenly pinging external IP repeatedly"
+      "Workstation with no ICMP history suddenly pinging external IP repeatedly",
+      "\u26a0\ufe0f BLIND SPOT: Most EDRs do not log ICMP payload data, and ICMP traffic is often excluded from SIEM log ingestion to economize on volumetry \u2014 making ICMP tunneling invisible to standard security monitoring. Custom rules on Cortex XDR, PCAP, Zeek, or Suricata are required."
     ],
     "staging_behaviors": [
       "Data staged as archive in temp directory, then read and chunked into ICMP payloads",
@@ -27563,6 +27606,11 @@
         "source": "Firewall \u2014 NGFW",
         "path": "ICMP session logs with byte counts",
         "notes": "Palo Alto and Fortinet NGFWs log ICMP sessions with bytes/packets. Filter for: ICMP sessions with bytes_from_client > 10KB, or session duration > 60 seconds."
+      },
+      {
+        "source": "Endpoint \u2014 Cortex XDR (ICMP Payload Logging)",
+        "path": "XDR dataset: xdr_data \u2014 fields: ICMP_TYPE, ICMP_CODE, ICMP_LENGTH, ICMP_DATA",
+        "notes": "Cortex XDR uniquely logs the full ICMP packet data content at the endpoint level. Fields: ICMP_TYPE (8=echo-request, 0=echo-reply), ICMP_CODE (0), ICMP_LENGTH (normal ping: 32-64 bytes; exfil: 464-1408+ bytes), ICMP_DATA (hex payload \u2014 compare against Windows default 'abcdefgh' pattern 0x6162636465666768). Real-world exfil observed with ICMP_LENGTH=1408 (MTU-filling) across 10+ consecutive packets with base64-encoded data in ICMP_DATA payload. This is the only mainstream EDR with this level of ICMP visibility."
       }
     ],
     "refs": [
@@ -27655,6 +27703,10 @@
       {
         "description": "Blue Team: Suricata + Snort rules for ICMP exfil detection",
         "command": "# Suricata rules (/etc/suricata/rules/icmp-exfil.rules)\nalert icmp $HOME_NET any -> $EXTERNAL_NET any (\n  msg:\"ICMP Oversized Payload - Possible Exfil\";\n  itype:8; dsize:>100;\n  classtype:policy-violation; sid:9000001; rev:1;)\n\nalert icmp $HOME_NET any -> $EXTERNAL_NET any (\n  msg:\"ptunnel-ng Magic Bytes in ICMP\";\n  itype:8; content:\"|45 52 52 00|\"; offset:0; depth:4;\n  classtype:trojan-activity; sid:9000002; rev:1;)\n\nalert icmp $HOME_NET any -> $EXTERNAL_NET any (\n  msg:\"icmpsh Identifier Fingerprint (0x0000)\";\n  itype:8; icode:0;\n  icmp_id:0;\n  classtype:trojan-activity; sid:9000003; rev:1;)\n\n# High-rate ICMP threshold rule\nalert icmp $HOME_NET any -> $EXTERNAL_NET any (\n  msg:\"High Rate ICMP - Possible Tunnel\";\n  itype:8;\n  threshold: type threshold, track by_src, count 100, seconds 60;\n  classtype:policy-violation; sid:9000004; rev:1;)"
+      },
+      {
+        "description": "Blue Team: Cortex XDR detection logic for ICMP exfil (leveraging unique ICMP_DATA field)",
+        "command": "# \u2500\u2500\u2500 Cortex XDR ICMP Exfil Detection Logic \u2500\u2500\u2500\n# Cortex XDR is one of the only EDRs that logs ICMP packet content.\n# Available fields: ICMP_TYPE, ICMP_CODE, ICMP_LENGTH, ICMP_DATA\n#\n# DETECTION 1 \u2014 Oversized ICMP payloads\n#   Filter: ICMP_TYPE = 8 (echo-request) AND ICMP_LENGTH > 100\n#   Normal ping: 32-64 bytes. Anything above 100 is suspicious.\n#\n# DETECTION 2 \u2014 MTU-filling pattern (chunked exfil)\n#   Filter: ICMP_TYPE = 8 AND ICMP_LENGTH >= 1400\n#   Group by: source host + destination IP\n#   Alert when: packet count > 5 to same destination\n#   Real-world: exfil sessions show 10+ consecutive 1408-byte packets\n#\n# DETECTION 3 \u2014 Non-standard payload content\n#   Filter: ICMP_TYPE = 8 AND ICMP_LENGTH > 64\n#   Check: ICMP_DATA does NOT contain '6162636465666768'\n#   Windows default ping payload is 'abcdefghijklmnop' = hex 61626364...\n#   Exfil payloads show base64 or encrypted data instead\n#\n# DETECTION 4 \u2014 Rate + volume anomaly\n#   Filter: ICMP_TYPE = 8 AND ICMP_LENGTH > 100\n#   Aggregate per minute by source host + destination IP\n#   Alert when: rate > 10 pkts/min OR total bytes > 50KB/min\n#\n# WHY THIS MATTERS:\n# Most EDRs only see ping.exe process creation \u2014 not payload content.\n# ICMP is often excluded from SIEM log ingestion to save on volumetry.\n# Cortex XDR's ICMP_DATA field enables content-level detection that\n# was previously only possible with full packet capture or Zeek."
       }
     ],
     "signer": [
