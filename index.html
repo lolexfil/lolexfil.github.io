@@ -31,6 +31,7 @@ body{font-family:var(--mono);background:var(--bg);color:var(--text);min-height:1
 .header-count{font-family:var(--mono);font-size:10px;color:var(--muted);
   padding:2px 7px;border:1px solid var(--border2);}
 .header-spacer{flex:1}
+.header-break{display:none;}
 .gh-link{display:flex;align-items:center;gap:7px;color:var(--muted);text-decoration:none;
   font-size:11px;font-weight:600;padding:5px 10px;border:1px solid var(--border2);
   background:transparent;transition:all .1s;white-space:nowrap;font-family:var(--mono);}
@@ -266,6 +267,13 @@ mark{background:rgba(251,191,36,.22);color:var(--warn);border-radius:2px;padding
 .footer-note code{font-family:var(--mono);font-size:11px}
 @media(max-width:900px){.toolbar{grid-template-columns:1fr 1fr}.two-col{grid-template-columns:1fr}.wordmark{font-size:1.3rem}}
 @media(max-width:560px){.toolbar{grid-template-columns:1fr}.grid{grid-template-columns:1fr;padding:10px}}
+@media(max-width:640px){
+  .site-header{flex-wrap:wrap;padding:10px 14px;gap:8px;}
+  .header-spacer{display:none;}
+  .gh-link{font-size:10px;padding:4px 8px;}
+  .header-break{display:block;width:100%;height:0;order:9;}
+  .site-header>.gh-link,.site-header>a.gh-link{order:10;}
+}
 </style>
 </head>
 <body>
@@ -277,7 +285,8 @@ mark{background:rgba(251,191,36,.22);color:var(--warn);border-radius:2px;padding
   <div class="wordmark"><span class="wm-lol">LOL</span><span class="wm-exfil">EXFIL</span></div>
   <span class="header-count" id="toolCount">— methods</span>
   <div class="header-spacer"></div>
-  <a class="gh-link" href="https://www.magicsword.io/plan?utm_source=extsentry&utm_medium=affiliate&utm_campaign=community-widget" target="_blank" rel="noopener" title="Magic Sword — Application control platform to block malicious browser extensions and prevent exfiltration (affiliated link, free trial available)"><img src="magicsword.png" alt="Magic Sword" style="height:22px;width:auto;object-fit:contain;vertical-align:middle;filter:brightness(1.1);"> Block</a>
+  <div class="header-break"></div>
+  <a class="gh-link" href="https://www.magicsword.io/plan?utm_source=extsentry&utm_medium=affiliate&utm_campaign=community-widget" target="_blank" rel="noopener" title="Magic Sword - Application control platform to block some of these applications and prevent exfiltration (affiliated link, free trial available)"><img src="magicsword.png" alt="Magic Sword" style="height:22px;width:auto;object-fit:contain;vertical-align:middle;filter:brightness(1.1);"> Block</a>
   <a class="gh-link" href="https://lolfsaas.github.io" target="_blank" rel="noopener" title="LOLFSaaS — Living Off Free SaaS: free SaaS services abused for offensive operations"><img src="https://lolfsaas.github.io/lolfsaas_logo.png" alt="LOLFSaaS" style="width:16px;height:16px;object-fit:contain;vertical-align:middle;"> LOLFSaaS</a>
   <a class="gh-link" href="https://lolc2.github.io" target="_blank" rel="noopener" title="LOLC2 — Living Off The Land C2 Frameworks using legitimate services for C2 and exfiltration"><img src="https://lolc2.github.io/lolc2.png" alt="LOLC2" style="width:16px;height:16px;object-fit:contain;vertical-align:middle;"> LOLC2</a>
   <a class="gh-link" href="https://github.com/lolexfil/lolexfil.github.io" target="_blank" rel="noopener">
